@@ -193,41 +193,47 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEYS.SOUND, JSON.stringify(soundEnabled));
   }, [soundEnabled]);
 
-  // Auth observer
+  // Initial load from server Cloud SQL database (works on any device / browser)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
-      if (currentUser) {
-        // Load data from Cloud SQL backend
-        try {
-          setIsSyncing(true);
-          const token = await currentUser.getIdToken();
-          const response = await fetch('/api/data/state', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.students && data.students.length > 0) setStudents(data.students);
-            if (data.classrooms && data.classrooms.length > 0) setClassrooms(data.classrooms);
-            if (data.rewards && data.rewards.length > 0) setRewards(data.rewards);
-            if (data.categories && data.categories.length > 0) setCategories(data.categories);
+    let isMounted = true;
+    const loadServerState = async () => {
+      try {
+        setIsSyncing(true);
+        const response = await fetch('/api/data/state');
+        if (response.ok) {
+          const data = await response.json();
+          if (!isMounted) return;
+          if (data.students && Array.isArray(data.students) && data.students.length > 0) {
+            setStudents(data.students);
           }
-        } catch (err) {
-          console.warn('Backend load failed, relying on local storage:', err);
-        } finally {
+          if (data.classrooms && Array.isArray(data.classrooms) && data.classrooms.length > 0) {
+            setClassrooms(data.classrooms);
+          }
+          if (data.rewards && Array.isArray(data.rewards) && data.rewards.length > 0) {
+            setRewards(data.rewards);
+          }
+          if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+            setCategories(data.categories);
+          }
+        }
+      } catch (err) {
+        console.warn('Initial server state load fallback to localStorage:', err);
+      } finally {
+        if (isMounted) {
           setIsSyncing(false);
+          setAuthLoading(false);
         }
       }
-    });
+    };
 
-    return () => unsubscribe();
+    loadServerState();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Save changes to localStorage & Cloud SQL
+  // Save changes to localStorage & Cloud Database (Server API)
   const persistState = useCallback(
     async (
       newStudents: Student[],
@@ -242,30 +248,26 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(newCategories));
         setLastSavedTime(new Date());
 
-        if (user) {
-          setIsSyncing(true);
-          const token = await user.getIdToken();
-          await fetch('/api/data/state', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              students: newStudents,
-              classrooms: newClassrooms,
-              rewards: newRewards,
-              categories: newCategories
-            })
-          });
-          setIsSyncing(false);
-        }
+        setIsSyncing(true);
+        await fetch('/api/data/state', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            students: newStudents,
+            classrooms: newClassrooms,
+            rewards: newRewards,
+            categories: newCategories
+          })
+        });
+        setIsSyncing(false);
       } catch (err) {
-        console.error('Failed to persist state:', err);
+        console.error('Failed to persist state to server:', err);
         setIsSyncing(false);
       }
     },
-    [user]
+    []
   );
 
   // Auto-sync when state updates

@@ -9,7 +9,8 @@ import {
   ExternalLink,
   ShieldCheck,
   UserCheck,
-  Sparkles
+  Sparkles,
+  Globe
 } from 'lucide-react';
 import { useStudents } from '../context/StudentContext';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -17,18 +18,32 @@ import firebaseConfig from '../../firebase-applet-config.json';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialError?: any;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialError }) => {
   const { loginWithGithub, loginWithGoogle, user } = useStudents();
   const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showGithubSetupGuide, setShowGithubSetupGuide] = useState<boolean>(false);
+  const [showVercelGuide, setShowVercelGuide] = useState<boolean>(false);
   const [copiedCallback, setCopiedCallback] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
+
+  // Auto-detect unauthorized-domain from initial error or location
+  React.useEffect(() => {
+    if (initialError) {
+      handleAuthError(initialError, 'Google');
+    }
+  }, [initialError]);
 
   if (!isOpen) return null;
 
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isVercelDomain = currentHostname.includes('vercel.app') || (currentHostname !== 'localhost' && !currentHostname.includes('firebaseapp.com') && !currentHostname.includes('web.app') && !currentHostname.includes('run.app'));
+
   const callbackUrl = `https://${firebaseConfig.authDomain}/__/auth/handler`;
+  const firebaseSettingsUrl = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`;
   const firebaseConsoleUrl = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`;
   const githubDevSettingsUrl = 'https://github.com/settings/developers';
 
@@ -38,32 +53,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setTimeout(() => setCopiedCallback(false), 2500);
   };
 
+  const handleCopyDomain = () => {
+    navigator.clipboard.writeText(currentHostname);
+    setCopiedDomain(true);
+    setTimeout(() => setCopiedDomain(false), 2500);
+  };
+
+  const handleAuthError = (err: any, provider: 'GitHub' | 'Google') => {
+    console.error(`${provider} Auth error:`, err);
+    if (
+      err.code === 'auth/unauthorized-domain' ||
+      err.message?.toLowerCase().includes('unauthorized domain') ||
+      err.message?.toLowerCase().includes('authorized domain')
+    ) {
+      setErrorMessage(`โดเมน ${currentHostname} ยังไม่ได้เพิ่มใน Authorized Domains ของ Firebase Console`);
+      setShowVercelGuide(true);
+    } else if (
+      err.code === 'auth/operation-not-allowed' || 
+      err.code === 'auth/configuration-not-found' ||
+      err.message?.toLowerCase().includes('configuration') ||
+      err.message?.toLowerCase().includes('disabled')
+    ) {
+      setErrorMessage(`ยังไม่ได้เปิดใช้งาน ${provider} Sign-in Provider ใน Firebase Console`);
+      if (provider === 'GitHub') setShowGithubSetupGuide(true);
+    } else if (err.code === 'auth/account-exists-with-different-credential') {
+      setErrorMessage('อีเมลนี้เชื่อมต่อกับวิธีเข้าสู่ระบบอื่นแล้ว (เช่น มีบัญชีด้วย Google อยู่แล้ว)');
+    } else if (err.code === 'auth/popup-blocked') {
+      setErrorMessage('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปสำหรับหน้านี้แล้วลองใหม่อีกครั้ง');
+    } else {
+      setErrorMessage(err.message || `เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย ${provider}`);
+    }
+  };
+
   const handleGithubLogin = async () => {
     setLoadingProvider('github');
     setErrorMessage(null);
     setShowGithubSetupGuide(false);
+    setShowVercelGuide(false);
     try {
       const loggedUser = await loginWithGithub();
       if (loggedUser) {
         onClose();
       }
     } catch (err: any) {
-      console.error('GitHub Auth error:', err);
-      if (
-        err.code === 'auth/operation-not-allowed' || 
-        err.code === 'auth/configuration-not-found' ||
-        err.message?.toLowerCase().includes('configuration') ||
-        err.message?.toLowerCase().includes('disabled')
-      ) {
-        setErrorMessage('ยังไม่ได้เปิดใช้งาน GitHub Sign-in Provider ใน Firebase Console');
-        setShowGithubSetupGuide(true);
-      } else if (err.code === 'auth/account-exists-with-different-credential') {
-        setErrorMessage('อีเมลของบัญชี GitHub นี้เชื่อมต่อกับวิธีเข้าสู่ระบบอื่นแล้ว (เช่น Google)');
-      } else if (err.code === 'auth/popup-blocked') {
-        setErrorMessage('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปสำหรับหน้านี้แล้วลองใหม่อีกครั้ง');
-      } else {
-        setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย GitHub');
-      }
+      handleAuthError(err, 'GitHub');
     } finally {
       setLoadingProvider(null);
     }
@@ -72,14 +105,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const handleGoogleLogin = async () => {
     setLoadingProvider('google');
     setErrorMessage(null);
+    setShowVercelGuide(false);
     try {
       const loggedUser = await loginWithGoogle();
       if (loggedUser) {
         onClose();
       }
     } catch (err: any) {
-      console.error('Google Auth error:', err);
-      setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google');
+      handleAuthError(err, 'Google');
     } finally {
       setLoadingProvider(null);
     }
@@ -196,6 +229,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 flex items-start space-x-2">
             <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
             <div className="flex-1">{errorMessage}</div>
+          </div>
+        )}
+
+        {/* Vercel / Authorized Domain Setup Guide */}
+        {(showVercelGuide || isVercelDomain) && (
+          <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-slate-800 space-y-3 animate-fade-in text-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-indigo-900 font-bold">
+                <Globe className="w-4 h-4 text-indigo-600" />
+                <span>วิธีแก้เมื่อเปิดบน Vercel แล้ว Login ไม่ได้:</span>
+              </div>
+              <span className="text-[10px] bg-indigo-200/70 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
+                Vercel Domain
+              </span>
+            </div>
+
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Firebase ไม่อนุญาตให้ล็อกอินจากโดเมนใหม่ (เช่น Vercel) จนกว่าจะเพิ่มโดเมนใน <strong>Authorized domains</strong> ของ Firebase Console ก่อน:
+            </p>
+            
+            <ol className="list-decimal list-inside space-y-2.5 text-[11px] text-slate-700 leading-relaxed">
+              <li>
+                คัดลอกชื่อโดเมนของ Vercel ของคุณ:
+                <div className="mt-1 flex items-center space-x-1.5">
+                  <input 
+                    readOnly 
+                    value={currentHostname} 
+                    className="flex-1 px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-[10px] font-mono font-bold text-indigo-900 select-all"
+                  />
+                  <button
+                    onClick={handleCopyDomain}
+                    className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-colors"
+                  >
+                    {copiedDomain ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedDomain ? 'ก๊อปแล้ว' : 'คัดลอกโดเมน'}</span>
+                  </button>
+                </div>
+              </li>
+              <li>
+                เปิด{' '}
+                <a 
+                  href={firebaseSettingsUrl} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="font-bold text-indigo-700 hover:underline inline-flex items-center gap-0.5"
+                >
+                  Firebase Authentication Settings <ExternalLink className="w-3 h-3" />
+                </a>
+              </li>
+              <li>
+                เลื่อนลงไปที่หัวข้อ <strong>"Authorized domains"</strong> แล้วกดปุ่ม <strong>"Add domain"</strong>
+              </li>
+              <li>
+                วางชื่อโดเมน <code className="bg-white px-1 py-0.5 rounded border border-indigo-200 text-indigo-800 font-mono text-[10px]">{currentHostname || 'your-app.vercel.app'}</code> แล้วกด <strong>Add</strong>
+              </li>
+            </ol>
+            <div className="p-2.5 bg-white/80 rounded-xl border border-indigo-100 text-[10px] text-indigo-900 font-medium">
+              ✨ เพิ่มเสร็จแล้ว สามารถรีเฟรชหน้าเว็บแล้วกดปุ่มเข้าสู่ระบบด้วย Gmail ได้ทันที ไม่ต้อง deploy ใหม่ครับ!
+            </div>
           </div>
         )}
 

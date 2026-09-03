@@ -52,7 +52,7 @@ async function startServer() {
     res.json({ user: req.user });
   });
 
-  app.use("/api/data", requireAuth, apiRouter);
+  app.use("/api/data", apiRouter);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

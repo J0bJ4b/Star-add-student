@@ -6,19 +6,20 @@ import { AuthRequest } from '../../server.js';
 
 const router = express.Router();
 
-// Middleware to ensure user exists in db
+// Middleware to ensure user exists in db (defaults to shared school account)
+const SHARED_UID = 'shared-school-account';
+
 const ensureUser = async (req: AuthRequest, res: express.Response, next: express.NextFunction) => {
-  const uid = req.user?.uid;
-  const email = req.user?.email;
-  if (!uid) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
+  const uid = req.user?.uid || SHARED_UID;
+  const email = req.user?.email || 'school@stargooddeeds.local';
   
   try {
     let userResult = await db.select().from(users).where(eq(users.uid, uid));
     if (userResult.length === 0) {
       userResult = await db.insert(users).values({ uid, email: email || '' }).returning();
+    }
+    if (!req.user) {
+      req.user = {};
     }
     req.user.dbId = userResult[0].id;
     next();
