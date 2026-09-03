@@ -132,35 +132,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         ) : (
           /* Login Buttons */
           <div className="space-y-3">
-            
-            {/* GitHub Login Button */}
-            <button
-              onClick={handleGithubLogin}
-              disabled={loadingProvider !== null}
-              className="w-full p-3.5 bg-[#24292e] hover:bg-[#1b1f23] active:scale-98 text-white rounded-2xl font-bold text-sm shadow-md shadow-black/10 transition-all flex items-center justify-between cursor-pointer disabled:opacity-50"
-            >
-              <div className="flex items-center space-x-3">
-                <Github className="w-5 h-5 fill-white" />
-                <div className="text-left">
-                  <div className="leading-tight font-black">เข้าสู่ระบบด้วย GitHub</div>
-                  <div className="text-[10px] text-slate-300 font-normal">Sign in with GitHub account</div>
-                </div>
-              </div>
-              {loadingProvider === 'github' ? (
-                <span className="text-xs text-slate-300 animate-pulse">กำลังเชื่อมต่อ...</span>
-              ) : (
-                <span className="text-xs bg-white/10 px-2 py-0.5 rounded-lg text-slate-200">แนะนำ</span>
-              )}
-            </button>
-
-            {/* Google Login Button */}
+            {/* Google / Gmail Login Button */}
             <button
               onClick={handleGoogleLogin}
               disabled={loadingProvider !== null}
-              className="w-full p-3.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 active:scale-98 text-slate-700 rounded-2xl font-bold text-sm shadow-xs transition-all flex items-center justify-between cursor-pointer disabled:opacity-50"
+              className="w-full p-3.5 bg-white hover:bg-slate-50 border-2 border-purple-200 hover:border-purple-400 active:scale-98 text-slate-700 rounded-2xl font-bold text-sm shadow-sm transition-all flex items-center justify-between cursor-pointer disabled:opacity-50"
             >
               <div className="flex items-center space-x-3">
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
@@ -179,12 +158,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   />
                 </svg>
                 <div className="text-left">
-                  <div className="leading-tight font-black text-slate-800">เข้าสู่ระบบด้วย Google</div>
-                  <div className="text-[10px] text-slate-400 font-normal">Sign in with Google account</div>
+                  <div className="leading-tight font-black text-slate-800 text-sm">เข้าสู่ระบบด้วย Google (Gmail)</div>
+                  <div className="text-[10px] text-slate-500 font-normal">ล็อกอินด้วยบัญชี Gmail สะดวกและรวดเร็ว</div>
                 </div>
               </div>
-              {loadingProvider === 'google' && (
-                <span className="text-xs text-slate-400 animate-pulse">กำลังเชื่อมต่อ...</span>
+              {loadingProvider === 'google' ? (
+                <span className="text-xs text-purple-600 font-bold animate-pulse">กำลังเชื่อมต่อ...</span>
+              ) : (
+                <span className="text-xs bg-purple-100 text-purple-700 font-black px-2 py-0.5 rounded-lg">แนะนำ</span>
+              )}
+            </button>
+
+            {/* GitHub Login Button */}
+            <button
+              onClick={handleGithubLogin}
+              disabled={loadingProvider !== null}
+              className="w-full p-3.5 bg-[#24292e] hover:bg-[#1b1f23] active:scale-98 text-white rounded-2xl font-bold text-sm shadow-xs transition-all flex items-center justify-between cursor-pointer disabled:opacity-50"
+            >
+              <div className="flex items-center space-x-3">
+                <Github className="w-5 h-5 fill-white shrink-0" />
+                <div className="text-left">
+                  <div className="leading-tight font-bold">เข้าสู่ระบบด้วย GitHub</div>
+                  <div className="text-[10px] text-slate-300 font-normal">Sign in with GitHub account</div>
+                </div>
+              </div>
+              {loadingProvider === 'github' ? (
+                <span className="text-xs text-slate-300 animate-pulse">กำลังเชื่อมต่อ...</span>
+              ) : (
+                <span className="text-xs bg-white/10 px-2 py-0.5 rounded-lg text-slate-200">ทางเลือก</span>
               )}
             </button>
           </div>
