@@ -5,6 +5,11 @@ import { Navbar } from './components/Navbar';
 import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { FloatingParticles } from './components/FloatingParticles';
 import { HomeView } from './components/HomeView';
+import { StudentsView } from './components/StudentsView';
+import { AddStarView } from './components/AddStarView';
+import { LeaderboardView } from './components/LeaderboardView';
+import { RewardsView } from './components/RewardsView';
+import { HistoryView } from './components/HistoryView';
 
 function MainAppContent() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
@@ -23,20 +28,11 @@ function MainAppContent() {
           {currentTab === 'dashboard' && (
             <HomeView onOpenBackup={() => setIsBackupOpen(true)} />
           )}
-          {currentTab !== 'dashboard' && (
-            <div className="bg-white rounded-3xl p-10 text-center border border-slate-100 shadow-sm mt-10">
-              <h2 className="text-2xl font-black text-slate-400 mb-2">อยู่ระหว่างการพัฒนา</h2>
-              <p className="text-slate-500">
-                คุณสามารถจัดการข้อมูลหลัก (มอบดาว จัดอันดับ เพิ่มนักเรียน) ได้ที่หน้า "หน้าแรก" ทั้งหมดแล้ว!
-              </p>
-              <button 
-                onClick={() => setCurrentTab('dashboard')}
-                className="mt-6 px-6 py-2 bg-orange-500 text-white rounded-xl font-bold shadow-md hover:bg-orange-600 transition-colors"
-              >
-                กลับไปหน้าแรก
-              </button>
-            </div>
-          )}
+          {currentTab === 'students' && <StudentsView />}
+          {currentTab === 'add-star' && <AddStarView />}
+          {currentTab === 'leaderboard' && <LeaderboardView />}
+          {currentTab === 'rewards' && <RewardsView />}
+          {currentTab === 'history' && <HistoryView />}
         </main>
       </div>
 
