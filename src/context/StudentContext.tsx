@@ -8,10 +8,10 @@ import {
   AVATAR_OPTIONS 
 } from '../lib/constants';
 import { sounds } from '../lib/audio';
-import { fireStarBurst, fireBigCelebration } from '../lib/confetti';
-import { auth, db, loginWithGoogle, loginAsGuest, logoutUser } from '../lib/firebase';
+import { fireStarBurst, fireStarShower, fireBigCelebration } from '../lib/confetti';
+import { emitFloatingParticle } from '../components/FloatingParticles';
+import { auth, loginWithGoogle, loginAsGuest, logoutUser } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface StudentContextType {
   students: Student[];
@@ -135,29 +135,25 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setUser(currentUser);
       setAuthLoading(false);
       if (currentUser) {
-        // Load data from Firestore
+        // Load data from Cloud SQL backend
         try {
           setIsSyncing(true);
-          const docRef = doc(db, 'teachers', currentUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.students) setStudents(data.students);
-            if (data.classrooms) setClassrooms(data.classrooms);
-            if (data.rewards) setRewards(data.rewards);
-            if (data.categories) setCategories(data.categories);
-          } else {
-            // First time login for this user: sync local state to Firestore
-            await setDoc(docRef, {
-              students,
-              classrooms,
-              rewards,
-              categories,
-              updatedAt: Date.now(),
-            });
+          const token = await currentUser.getIdToken();
+          const response = await fetch('/api/data/state', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.students && data.students.length > 0) setStudents(data.students);
+            if (data.classrooms && data.classrooms.length > 0) setClassrooms(data.classrooms);
+            if (data.rewards && data.rewards.length > 0) setRewards(data.rewards);
+            if (data.categories && data.categories.length > 0) setCategories(data.categories);
           }
         } catch (err) {
-          console.warn('Firestore load failed, relying on local storage:', err);
+          console.warn('Backend load failed, relying on local storage:', err);
         } finally {
           setIsSyncing(false);
         }
@@ -167,7 +163,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => unsubscribe();
   }, []);
 
-  // Save changes to localStorage & Cloud Firestore
+  // Save changes to localStorage & Cloud SQL
   const persistState = useCallback(
     async (
       newStudents: Student[],
@@ -184,18 +180,20 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         if (user) {
           setIsSyncing(true);
-          const docRef = doc(db, 'teachers', user.uid);
-          await setDoc(
-            docRef,
-            {
+          const token = await user.getIdToken();
+          await fetch('/api/data/state', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
               students: newStudents,
               classrooms: newClassrooms,
               rewards: newRewards,
-              categories: newCategories,
-              updatedAt: Date.now(),
-            },
-            { merge: true }
-          );
+              categories: newCategories
+            })
+          });
           setIsSyncing(false);
         }
       } catch (err) {
@@ -232,8 +230,12 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       sounds.playStarChime(amount <= 0.5);
       if (posX !== undefined && posY !== undefined) {
         fireStarBurst(posX, posY);
+        emitFloatingParticle(posX, posY, amount);
+        if (amount >= 1) {
+          fireStarShower();
+        }
       } else {
-        fireStarBurst(0.5, 0.4);
+        fireStarShower();
       }
     }
 
@@ -307,7 +309,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (studentIds.length === 0) return;
     const cat = categoryName || selectedCategory || 'มอบดาวทั้งกลุ่ม';
     sounds.playStarChime(false);
-    fireStarBurst(0.5, 0.3);
+    fireStarShower();
 
     const now = Date.now();
     setStudents((prev) =>

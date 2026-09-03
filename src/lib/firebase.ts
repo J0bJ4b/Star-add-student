@@ -8,19 +8,11 @@ import {
   onAuthStateChanged,
   User 
 } from 'firebase/auth';
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  onSnapshot 
-} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -29,6 +21,10 @@ export async function loginWithGoogle() {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      console.log('Google Sign-in popup closed by user.');
+      return null;
+    }
     console.error('Google Sign-in failed:', error);
     throw error;
   }

@@ -3,19 +3,44 @@ import confetti from 'canvas-confetti';
 export function fireStarBurst(originX = 0.5, originY = 0.5) {
   // Sparkle stars confetti
   confetti({
-    particleCount: 25,
-    spread: 70,
+    particleCount: 50,
+    spread: 90,
     origin: { x: originX, y: originY },
-    colors: ['#FBBF24', '#F59E0B', '#FDE047', '#9333EA', '#EC4899'],
+    colors: ['#FBBF24', '#F59E0B', '#FDE047', '#9333EA', '#EC4899', '#38BDF8'],
     shapes: ['star', 'circle'],
     scalar: 1.2,
-    ticks: 120,
+    ticks: 150,
     gravity: 0.8,
+    decay: 0.94,
+    startVelocity: 30,
+    zIndex: 9999,
   });
 }
 
+export function fireStarShower() {
+  const duration = 2500;
+  const animationEnd = Date.now() + duration;
+  const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+  const interval: any = setInterval(function() {
+    const timeLeft = animationEnd - Date.now();
+
+    if (timeLeft <= 0) {
+      return clearInterval(interval);
+    }
+
+    const particleCount = 25 * (timeLeft / duration);
+    confetti(Object.assign({}, defaults, { 
+      particleCount, 
+      origin: { x: Math.random(), y: Math.random() - 0.2 }, 
+      shapes: ['star'], 
+      colors: ['#FBBF24', '#F59E0B', '#FDE047'] 
+    }));
+  }, 250);
+}
+
 export function fireBigCelebration() {
-  const count = 100;
+  const count = 200;
   const defaults = {
     origin: { y: 0.7 },
     zIndex: 9999,
