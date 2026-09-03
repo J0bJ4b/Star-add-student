@@ -143,10 +143,13 @@ router.get('/state', async (req: AuthRequest, res) => {
 
     const updatedAt = dbMeta[0]?.updatedAt || Date.now();
 
+    // Deduplicate classrooms
+    const uniqueClassrooms = Array.from(new Set(dbClassrooms.map(c => c.name)));
+
     res.json({
       updatedAt,
-      hasData: dbStudents.length > 0 || dbClassrooms.length > 0,
-      classrooms: dbClassrooms.map(c => c.name),
+      hasData: dbStudents.length > 0 || uniqueClassrooms.length > 0,
+      classrooms: uniqueClassrooms,
       students: mappedStudents,
       categories: dbCategories,
       rewards: mappedRewards,

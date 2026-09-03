@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Student, Reward, StarLog, StarCategory, AttendanceRecord, AttendanceStatus, StudentTeam } from '../types';
+import { Student, Reward, StarLog, StarCategory, AttendanceRecord, AttendanceStatus, StudentTeam, LinkedGoogleSheet } from '../types';
 import { 
   DEFAULT_STUDENTS, 
   DEFAULT_REWARDS, 
@@ -10,8 +10,16 @@ import {
 import { sounds } from '../lib/audio';
 import { fireStarBurst, fireStarShower, fireBigCelebration } from '../lib/confetti';
 import { emitFloatingParticle } from '../components/FloatingParticles';
-import { auth, loginWithGoogle, loginWithGithub, loginAsGuest, logoutUser } from '../lib/firebase';
-import { User } from 'firebase/auth';
+import { auth, loginWithGoogle, loginWithGithub, loginAsGuest, logoutUser, getAccessToken, setAccessToken } from '../lib/firebase';
+import { User, onAuthStateChanged } from 'firebase/auth';
+import { 
+  createAndPopulateSpreadsheet, 
+  updateAllTabsInSpreadsheet, 
+  readSpreadsheetRange, 
+  getSpreadsheetDetails, 
+  listUserSpreadsheets, 
+  extractSpreadsheetId 
+} from '../lib/googleSheets';
 
 interface StudentContextType {
   students: Student[];
@@ -26,12 +34,26 @@ interface StudentContextType {
   isSyncing: boolean;
   lastSavedTime: Date | null;
   syncNow: () => Promise<void>;
+
+  // Google Sheets Integration
+  googleAccessToken: string | null;
+  linkedSpreadsheet: LinkedGoogleSheet | null;
+  setLinkedSpreadsheet: (sheet: LinkedGoogleSheet | null) => void;
+  connectGoogleSheets: () => Promise<string | null>;
+  disconnectGoogleSheets: () => Promise<void>;
+  exportToGoogleSheets: (customTitle?: string) => Promise<{ spreadsheetId: string; spreadsheetUrl: string }>;
+  syncToLinkedGoogleSheet: () => Promise<{ success: boolean; message: string }>;
+  importStudentsFromGoogleSheet: (
+    spreadsheetId: string, 
+    sheetTabName?: string, 
+    targetClassroom?: string
+  ) => Promise<{ success: boolean; count: number; message: string }>;
   
   // Actions
   setActiveClassroom: (classroom: string) => void;
   setSelectedCategory: (cat: string) => void;
   toggleSound: () => void;
-  loginWithGoogle: () => Promise<User | void>;
+  loginWithGoogle: () => Promise<any>;
   loginWithGithub: () => Promise<User | void>;
   loginAsGuest: () => Promise<User | void>;
   logout: () => Promise<void>;
@@ -96,7 +118,8 @@ const STORAGE_KEYS = {
   SOUND: 'stargooddeeds_sound_v2',
   ATTENDANCE: 'stargooddeeds_attendance_v2',
   TEAMS: 'stargooddeeds_teams_v2',
-  LAST_SYNC: 'stargooddeeds_last_sync_v2'
+  LAST_SYNC: 'stargooddeeds_last_sync_v2',
+  LINKED_SHEET: 'stargooddeeds_linked_sheet_v2'
 };
 
 const DEFAULT_TEAMS_DATA: StudentTeam[] = [
@@ -174,7 +197,16 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeClassroom, setActiveClassroom] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('ส่งงานครบ');
   const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(false);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [googleAccessToken, setGoogleAccessTokenState] = useState<string | null>(null);
+  const [linkedSpreadsheet, setLinkedSpreadsheetState] = useState<LinkedGoogleSheet | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LINKED_SHEET);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(new Date());
   const [isProjectorOpen, setIsProjectorOpen] = useState<boolean>(false);
@@ -183,6 +215,244 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const isInitialLoadedRef = useRef<boolean>(false);
   const lastServerTimestampRef = useRef<number>(0);
   const isSavingRef = useRef<boolean>(false);
+
+  // Auth listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+      const token = await getAccessToken();
+      setGoogleAccessTokenState(token);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const setLinkedSpreadsheet = (sheet: LinkedGoogleSheet | null) => {
+    setLinkedSpreadsheetState(sheet);
+    if (sheet) {
+      localStorage.setItem(STORAGE_KEYS.LINKED_SHEET, JSON.stringify(sheet));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.LINKED_SHEET);
+    }
+  };
+
+  const connectGoogleSheets = async (): Promise<string | null> => {
+    try {
+      const result = await loginWithGoogle();
+      if (result?.accessToken) {
+        setGoogleAccessTokenState(result.accessToken);
+        return result.accessToken;
+      }
+      const token = await getAccessToken();
+      setGoogleAccessTokenState(token);
+      return token;
+    } catch (err: any) {
+      console.error('Google Sheets connection error:', err);
+      throw err;
+    }
+  };
+
+  const disconnectGoogleSheets = async () => {
+    await logoutUser();
+    setUser(null);
+    setGoogleAccessTokenState(null);
+  };
+
+  // Google Sheets Export
+  const exportToGoogleSheets = async (customTitle?: string): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> => {
+    let token = googleAccessToken || (await getAccessToken());
+    if (!token) {
+      token = await connectGoogleSheets();
+    }
+    if (!token) {
+      throw new Error('กรุณาเชื่อมต่อบัญชี Google ก่อนส่งออกข้อมูล');
+    }
+
+    const allLogs = getAllStarLogs();
+    const result = await createAndPopulateSpreadsheet(
+      token,
+      customTitle || `ดาวเด็กดี - คะแนนและความดี (${new Date().toLocaleDateString('th-TH')})`,
+      {
+        students,
+        classrooms,
+        rewards,
+        categories,
+        attendance,
+        allLogs,
+      }
+    );
+
+    const newLinked: LinkedGoogleSheet = {
+      id: result.spreadsheetId,
+      name: customTitle || 'ดาวเด็กดี - ข้อมูลคะแนนและประวัติ',
+      url: result.spreadsheetUrl,
+      lastSyncedAt: Date.now(),
+    };
+    setLinkedSpreadsheet(newLinked);
+    sounds.playRewardFanfare();
+    fireBigCelebration();
+    return result;
+  };
+
+  // Google Sheets Sync to Existing
+  const syncToLinkedGoogleSheet = async (): Promise<{ success: boolean; message: string }> => {
+    if (!linkedSpreadsheet?.id) {
+      return { success: false, message: 'ยังไม่มี Google Sheet ที่เชื่อมต่อไว้ กรุณาสร้างหรือเลือกชีตก่อน' };
+    }
+    let token = googleAccessToken || (await getAccessToken());
+    if (!token) {
+      token = await connectGoogleSheets();
+    }
+    if (!token) {
+      return { success: false, message: 'กรุณาเชื่อมต่อบัญชี Google ก่อนซิงค์ข้อมูล' };
+    }
+
+    const allLogs = getAllStarLogs();
+    await updateAllTabsInSpreadsheet(token, linkedSpreadsheet.id, {
+      students,
+      classrooms,
+      rewards,
+      categories,
+      attendance,
+      allLogs,
+    });
+
+    const updated = {
+      ...linkedSpreadsheet,
+      lastSyncedAt: Date.now(),
+    };
+    setLinkedSpreadsheet(updated);
+    sounds.playStarChime(true);
+    return { success: true, message: 'อัปเดตข้อมูลไปยัง Google Sheets สำเร็จเรียบร้อยแล้ว!' };
+  };
+
+  // Google Sheets Import
+  const importStudentsFromGoogleSheet = async (
+    spreadsheetId: string,
+    sheetTabName = 'รายชื่อและคะแนนดาว',
+    targetClassroom?: string
+  ): Promise<{ success: boolean; count: number; message: string }> => {
+    let token = googleAccessToken || (await getAccessToken());
+    if (!token) {
+      token = await connectGoogleSheets();
+    }
+    if (!token) {
+      return { success: false, count: 0, message: 'กรุณาเชื่อมต่อบัญชี Google ก่อนนำเข้าข้อมูล' };
+    }
+
+    const cleanId = extractSpreadsheetId(spreadsheetId);
+    let tabToRead = sheetTabName;
+    
+    // Check available sheets in spreadsheet
+    try {
+      const details = await getSpreadsheetDetails(token, cleanId);
+      const sheetTitles = (details.sheets || []).map((s: any) => s.properties?.title);
+      if (sheetTitles.length > 0 && !sheetTitles.includes(tabToRead)) {
+        tabToRead = sheetTitles[0]; // fallback to first tab
+      }
+    } catch (e: any) {
+      console.warn('Could not inspect sheet tabs, trying default range:', e);
+    }
+
+    const rows = await readSpreadsheetRange(token, cleanId, `${tabToRead}!A1:G1000`);
+    if (!rows || rows.length <= 1) {
+      return { success: false, count: 0, message: 'ไม่พบข้อมูลแถวใน Google Sheet ที่ระบุ' };
+    }
+
+    const headers = rows[0].map((h: any) => String(h).trim().toLowerCase());
+    
+    // Determine column indices
+    let nameIdx = headers.findIndex((h: string) => h.includes('ชื่อ') || h.includes('name'));
+    let classIdx = headers.findIndex((h: string) => h.includes('ห้อง') || h.includes('class') || h.includes('room'));
+    let starIdx = headers.findIndex((h: string) => h.includes('ดาว') || h.includes('star') || h.includes('คะแนน'));
+    let avatarIdx = headers.findIndex((h: string) => h.includes('รูป') || h.includes('avatar') || h.includes('ไอคอน'));
+    let idIdx = headers.findIndex((h: string) => h.includes('รหัส') || h.includes('id'));
+
+    // Fallbacks if header wasn't matched explicitly
+    if (nameIdx === -1) nameIdx = 1 < headers.length ? 1 : 0;
+    if (classIdx === -1) classIdx = 2 < headers.length ? 2 : -1;
+    if (starIdx === -1) starIdx = 4 < headers.length ? 4 : -1;
+    if (avatarIdx === -1) avatarIdx = 3 < headers.length ? 3 : -1;
+
+    const importedStudents: Student[] = [];
+    const newClassroomsSet = new Set<string>(classrooms);
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      
+      const rawName = row[nameIdx] ? String(row[nameIdx]).trim() : '';
+      if (!rawName) continue;
+
+      const rawClassroom = (targetClassroom && targetClassroom !== 'all') 
+        ? targetClassroom 
+        : (classIdx !== -1 && row[classIdx] ? String(row[row[classIdx] !== undefined ? classIdx : 2]).trim() : (classrooms[0] || 'ป.3/1'));
+      
+      const rawStars = starIdx !== -1 && row[starIdx] ? parseFloat(String(row[starIdx])) : 0;
+      const validStars = isNaN(rawStars) ? 0 : Math.max(0, rawStars);
+
+      const rawAvatar = avatarIdx !== -1 && row[avatarIdx] ? String(row[avatarIdx]).trim() : '';
+      const chosenAvatar = (rawAvatar && AVATAR_OPTIONS.includes(rawAvatar)) 
+        ? rawAvatar 
+        : AVATAR_OPTIONS[Math.floor(Math.random() * AVATAR_OPTIONS.length)];
+
+      const studentId = (idIdx !== -1 && row[idIdx] && String(row[idIdx]).trim()) 
+        ? String(row[idIdx]).trim() 
+        : `std-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+
+      if (rawClassroom) {
+        newClassroomsSet.add(rawClassroom);
+      }
+
+      importedStudents.push({
+        id: studentId,
+        name: rawName,
+        classroom: rawClassroom || 'ป.3/1',
+        stars: validStars,
+        avatar: chosenAvatar,
+        starHistory: [],
+        claimedRewards: [],
+        createdAt: Date.now(),
+      });
+    }
+
+    if (importedStudents.length === 0) {
+      return { success: false, count: 0, message: 'ไม่สามารถแปลงข้อมูลนักเรียนจาก Google Sheet ได้ กรุณาตรวจสอบหัวตาราง' };
+    }
+
+    // Merge or replace students
+    setStudents((prev) => {
+      const existingMap = new Map(prev.map((s) => [s.name + '::' + s.classroom, s]));
+      const updated = [...prev];
+      
+      importedStudents.forEach((newStd) => {
+        const key = newStd.name + '::' + newStd.classroom;
+        if (existingMap.has(key)) {
+          const idx = updated.findIndex((s) => s.name === newStd.name && s.classroom === newStd.classroom);
+          if (idx !== -1) {
+            updated[idx] = {
+              ...updated[idx],
+              stars: newStd.stars > 0 ? newStd.stars : updated[idx].stars,
+              avatar: newStd.avatar || updated[idx].avatar,
+            };
+          }
+        } else {
+          updated.push(newStd);
+        }
+      });
+      return updated;
+    });
+
+    setClassrooms(Array.from(newClassroomsSet));
+    sounds.playRewardFanfare();
+    fireBigCelebration();
+
+    return {
+      success: true,
+      count: importedStudents.length,
+      message: `นำเข้านักเรียน ${importedStudents.length} คน จาก Google Sheet สำเร็จเรียบร้อย!`,
+    };
+  };
 
   // Keep sound effects sync
   useEffect(() => {
@@ -1035,6 +1305,14 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isSyncing,
         lastSavedTime,
         syncNow,
+        googleAccessToken,
+        linkedSpreadsheet,
+        setLinkedSpreadsheet,
+        connectGoogleSheets,
+        disconnectGoogleSheets,
+        exportToGoogleSheets,
+        syncToLinkedGoogleSheet,
+        importStudentsFromGoogleSheet,
         setActiveClassroom,
         setSelectedCategory,
         toggleSound,

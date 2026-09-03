@@ -79,4 +79,12 @@ export type TabType =
   | 'rewards' 
   | 'badges' 
   | 'reports' 
+  | 'sheets'
   | 'history';
+
+export interface LinkedGoogleSheet {
+  id: string;
+  name: string;
+  url: string;
+  lastSyncedAt?: number;
+}

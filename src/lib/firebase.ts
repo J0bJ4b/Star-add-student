@@ -17,14 +17,42 @@ export const auth = getAuth(app);
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+// Add Workspace OAuth scopes
+googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+
 const githubProvider = new GithubAuthProvider();
 githubProvider.addScope('read:user');
 githubProvider.addScope('user:email');
 
-export async function loginWithGoogle() {
+// In-memory access token cache for Google Workspace APIs (NEVER store in localStorage)
+let cachedAccessToken: string | null = null;
+let isSigningIn = false;
+
+// Clear cached token on sign out
+onAuthStateChanged(auth, (user) => {
+  if (!user && !isSigningIn) {
+    cachedAccessToken = null;
+  }
+});
+
+export const getAccessToken = async (): Promise<string | null> => {
+  return cachedAccessToken;
+};
+
+export const setAccessToken = (token: string | null) => {
+  cachedAccessToken = token;
+};
+
+export async function loginWithGoogle(): Promise<{ user: User; accessToken: string | null } | null> {
   try {
+    isSigningIn = true;
     const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      cachedAccessToken = credential.accessToken;
+    }
+    return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
       console.log('Google Sign-in popup closed by user.');
@@ -32,6 +60,8 @@ export async function loginWithGoogle() {
     }
     console.error('Google Sign-in failed:', error);
     throw error;
+  } finally {
+    isSigningIn = false;
   }
 }
 
@@ -62,6 +92,7 @@ export async function loginAsGuest() {
 export async function logoutUser() {
   try {
     await signOut(auth);
+    cachedAccessToken = null;
   } catch (error) {
     console.error('Sign out error:', error);
   }
