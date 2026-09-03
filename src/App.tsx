@@ -15,6 +15,7 @@ import { ActivitiesView } from './components/ActivitiesView';
 import { AttendanceView } from './components/AttendanceView';
 import { BadgesView } from './components/BadgesView';
 import { ReportsView } from './components/ReportsView';
+import { GoogleSheetsView } from './components/GoogleSheetsView';
 import { ProjectorModal } from './components/ProjectorModal';
 
 function MainAppContent() {
@@ -48,6 +49,7 @@ function MainAppContent() {
           {currentTab === 'rewards' && <RewardsView />}
           {currentTab === 'badges' && <BadgesView />}
           {currentTab === 'reports' && <ReportsView />}
+          {currentTab === 'sheets' && <GoogleSheetsView />}
           {currentTab === 'history' && <HistoryView />}
         </main>
       </div>

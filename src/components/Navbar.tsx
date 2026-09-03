@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Home, Star, Users, Award, Gift, History, Menu, X, Database, Volume2, VolumeX, GraduationCap,
-  Sparkles, CheckCircle2, BookmarkCheck, FileText, Monitor, DownloadCloud, RefreshCw
+  Sparkles, CheckCircle2, BookmarkCheck, FileText, Monitor, DownloadCloud, RefreshCw, FileSpreadsheet
 } from 'lucide-react';
 import { TabType } from '../types';
 import { useStudents } from '../context/StudentContext';
@@ -46,6 +46,7 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
     { id: 'rewards', label: 'แลกรางวัล', icon: <Gift className="w-5 h-5" /> },
     { id: 'badges', label: 'เกณฑ์ความดี', icon: <BookmarkCheck className="w-5 h-5" /> },
     { id: 'reports', label: 'รายงาน & พิมพ์', icon: <FileText className="w-5 h-5" /> },
+    { id: 'sheets', label: 'Google Sheets 📊', icon: <FileSpreadsheet className="w-5 h-5 text-emerald-500" /> },
     { id: 'history', label: 'ประวัติ', icon: <History className="w-5 h-5" /> },
   ];
 
