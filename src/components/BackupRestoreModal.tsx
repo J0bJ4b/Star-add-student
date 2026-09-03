@@ -32,6 +32,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     rewards,
     user,
     lastSavedTime,
+    isSyncing,
+    syncNow,
     exportBackupJSON,
     importBackupJSON,
     exportBackupCode,
@@ -45,9 +47,22 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   const [codeInputValue, setCodeInputValue] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [manualSyncing, setManualSyncing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleManualSyncModal = async () => {
+    try {
+      setManualSyncing(true);
+      await syncNow();
+      setImportStatus({ type: 'success', text: 'ซิงค์ข้อมูลกับคลาวด์ล่าสุดเรียบร้อยแล้ว!' });
+    } catch (err: any) {
+      setImportStatus({ type: 'error', text: 'การซิงค์ข้อมูลล้มเหลว กรุณาลองใหม่อีกครั้ง' });
+    } finally {
+      setManualSyncing(false);
+    }
+  };
 
   const handleGenerateCode = () => {
     const code = exportBackupCode();
@@ -149,26 +164,39 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         </div>
 
         {/* Sync Status Box */}
-        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/60 to-slate-50 border border-purple-100 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-              <HardDrive className="w-4 h-4 text-purple-600" />
-              <span>ข้อมูลปัจจุบันในระบบ:</span>
+            <span className="font-bold text-slate-800 flex items-center gap-1.5">
+              <Cloud className="w-4 h-4 text-purple-600" />
+              <span>สถานะเชื่อมต่อคลาวด์ (Cloud Sync ทุกเครื่อง):</span>
             </span>
-            <span className="text-emerald-600 font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> บันทึกอัตโนมัติ
+            <span className="text-emerald-600 font-bold flex items-center gap-1 text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>ออนไลน์ทุกอุปกรณ์</span>
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-500 leading-relaxed">
-            นักเรียน <span className="font-bold text-slate-700">{students.length} คน</span>, 
-            ห้องเรียน <span className="font-bold text-slate-700">{classrooms.length} ห้อง</span>, 
-            ของรางวัล <span className="font-bold text-slate-700">{rewards.length} ชิ้น</span>
-            {user ? ' (ซิงค์บน Firestore Cloud แล้ว)' : ' (บันทึกใน LocalStorage เครื่องนี้)'}
+          <p className="text-[11px] text-slate-600 leading-relaxed">
+            นักเรียน <span className="font-bold text-purple-700">{students.length} คน</span>, 
+            ห้องเรียน <span className="font-bold text-purple-700">{classrooms.length} ห้อง</span>, 
+            ของรางวัล <span className="font-bold text-purple-700">{rewards.length} ชิ้น</span>
+            <span className="text-slate-500 block mt-0.5">
+              ✨ ข้อมูลจะซิงค์ตรงกับเซิร์ฟเวอร์แบบเรียลไทม์ เปิดเครื่องไหน/มือถือเครื่องใดก็เป็นข้อมูลชุดเดียวกัน
+            </span>
           </p>
 
-          <div className="text-[10px] text-slate-400">
-            บันทึกล่าสุด: {lastSavedTime ? lastSavedTime.toLocaleTimeString('th-TH') : 'เมื่อสักครู่'}
+          <div className="flex items-center justify-between pt-1 border-t border-purple-100/60">
+            <div className="text-[10px] text-slate-400">
+              บันทึกล่าสุด: {lastSavedTime ? lastSavedTime.toLocaleTimeString('th-TH') : 'เมื่อสักครู่'}
+            </div>
+            <button
+              onClick={handleManualSyncModal}
+              disabled={manualSyncing || isSyncing}
+              className="flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+            >
+              <RefreshCcw className={`w-3 h-3 ${manualSyncing || isSyncing ? 'animate-spin' : ''}`} />
+              <span>{manualSyncing || isSyncing ? 'กำลังดึงข้อมูล...' : 'ซิงค์ข้อมูลเดี๋ยวนี้'}</span>
+            </button>
           </div>
         </div>
 

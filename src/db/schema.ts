@@ -1,17 +1,11 @@
-import { relations } from 'drizzle-orm';
-import { integer, pgTable, serial, text, timestamp, real } from 'drizzle-orm/pg-core';
+import { integer, pgTable, serial, text, timestamp, real, jsonb } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
-  uid: text('uid').notNull().unique(), // Firebase Auth UID
+  uid: text('uid').notNull().unique(), // Firebase Auth UID / Shared ID
   email: text('email').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });
-
-// Since the old app stored entire state in a single document `teachers/{uid}`, 
-// we will migrate to a similar robust table structure, or simple document-like structure, 
-// but since we want to fully use Cloud SQL, let's make it normalized where necessary.
-// We can store classrooms, students, rewards, categories in tables.
 
 export const classrooms = pgTable('classrooms', {
   id: serial('id').primaryKey(),
@@ -71,4 +65,35 @@ export const categories = pgTable('categories', {
   name: text('name').notNull(),
   color: text('color').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const attendanceRecords = pgTable('attendance_records', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  recordId: text('record_id').notNull(),
+  date: text('date').notNull(),
+  studentId: text('student_id').notNull(),
+  studentName: text('student_name').notNull(),
+  classroom: text('classroom').notNull(),
+  status: text('status').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const studentTeams = pgTable('student_teams', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  teamId: text('team_id').notNull(),
+  name: text('name').notNull(),
+  color: text('color').notNull(),
+  bgLight: text('bg_light').notNull(),
+  studentIds: text('student_ids').notNull(), // JSON string array of IDs
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const appMetadata = pgTable('app_metadata', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull().unique(),
+  updatedAt: real('updated_at').notNull(),
+  extra: jsonb('extra'),
 });

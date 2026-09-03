@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Home, Star, Users, Award, Gift, History, Menu, X, Database, Volume2, VolumeX, GraduationCap,
-  Sparkles, CheckCircle2, BookmarkCheck, FileText, Monitor, DownloadCloud
+  Sparkles, CheckCircle2, BookmarkCheck, FileText, Monitor, DownloadCloud, RefreshCw
 } from 'lucide-react';
 import { TabType } from '../types';
 import { useStudents } from '../context/StudentContext';
@@ -15,13 +15,24 @@ interface Props {
 
 export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { activeClassroom, setActiveClassroom, classrooms, setIsProjectorOpen, isSyncing } = useStudents();
+  const { activeClassroom, setActiveClassroom, classrooms, setIsProjectorOpen, isSyncing, syncNow } = useStudents();
   
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [manualSyncing, setManualSyncing] = useState(false);
   
   const toggleSound = () => {
     setSoundEnabled(!soundEnabled);
     sounds.toggleMute();
+  };
+
+  const handleManualSync = async () => {
+    try {
+      setManualSyncing(true);
+      sounds.playClick();
+      await syncNow();
+    } finally {
+      setTimeout(() => setManualSyncing(false), 600);
+    }
   };
 
   const navItems: { id: TabType; label: string; icon: React.ReactNode }[] = [
@@ -111,7 +122,7 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
         </div>
 
         <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-2.5">
-          {/* Sound toggle & quick actions */}
+          {/* Sound toggle & Cloud Sync status */}
           <div className="flex items-center justify-between">
             <button
               onClick={toggleSound}
@@ -123,10 +134,14 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-400 animate-ping' : 'bg-emerald-500'}`}></span>
-              <span className="font-semibold text-slate-600">{isSyncing ? 'กำลังบันทึก...' : 'เชื่อมโยงข้อมูลแล้ว'}</span>
-            </div>
+            <button
+              onClick={handleManualSync}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 hover:border-purple-300 rounded-xl text-[11px] text-slate-600 hover:text-purple-700 transition-all cursor-pointer shadow-xs"
+              title="กดเพื่อดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์ทันที"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-purple-600 ${isSyncing || manualSyncing ? 'animate-spin' : ''}`} />
+              <span className="font-bold">{isSyncing || manualSyncing ? 'กำลังซิงค์...' : 'ซิงค์ทุกเครื่อง ☁️'}</span>
+            </button>
           </div>
           
           {/* Backup / Restore Button */}
@@ -140,7 +155,7 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
               </div>
               <div className="text-left min-w-0">
                 <div className="text-xs font-bold text-slate-800">สำรอง / ย้ายเครื่อง</div>
-                <div className="text-[10px] text-purple-600 font-semibold">Backup & Restore</div>
+                <div className="text-[10px] text-purple-600 font-semibold">Backup & Sync</div>
               </div>
             </div>
             <DownloadCloud className="w-4 h-4 text-slate-400 group-hover:text-purple-600 transition-colors" />
@@ -156,6 +171,13 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
             <span className="text-lg font-black font-heading">ดาวเด็กดี</span>
           </div>
           <div className="flex items-center space-x-2">
+            <button
+              onClick={handleManualSync}
+              className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl cursor-pointer"
+              title="ซิงค์ข้อมูลล่าสุด"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing || manualSyncing ? 'animate-spin' : ''}`} />
+            </button>
             <button
               onClick={onOpenBackup}
               className="p-2 text-purple-600 bg-purple-50 rounded-xl cursor-pointer"
@@ -204,13 +226,21 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
               ))}
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
               <button
                 onClick={toggleSound}
                 className="flex items-center space-x-2 text-xs font-bold text-slate-600 p-2 rounded-xl bg-slate-100"
               >
                 {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-500" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
-                <span>{soundEnabled ? 'เปิดเสียงอยู่' : 'ปิดเสียง'}</span>
+                <span>{soundEnabled ? 'เปิดเสียง' : 'ปิดเสียง'}</span>
+              </button>
+
+              <button
+                onClick={handleManualSync}
+                className="flex items-center space-x-1.5 text-xs font-bold text-purple-700 bg-purple-50 px-3 py-2 rounded-xl"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing || manualSyncing ? 'animate-spin' : ''}`} />
+                <span>ซิงค์สด</span>
               </button>
 
               <button
@@ -218,10 +248,10 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
                   setMobileMenuOpen(false);
                   onOpenBackup();
                 }}
-                className="flex items-center space-x-2 text-xs font-bold text-purple-700 bg-purple-50 px-3 py-2 rounded-xl"
+                className="flex items-center space-x-1.5 text-xs font-bold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl"
               >
-                <Database className="w-4 h-4" />
-                <span>สำรอง / กู้ข้อมูล</span>
+                <Database className="w-3.5 h-3.5" />
+                <span>สำรอง</span>
               </button>
             </div>
           </div>

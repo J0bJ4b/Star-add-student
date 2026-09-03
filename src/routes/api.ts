@@ -1,6 +1,17 @@
 import express from 'express';
 import { db } from '../db/index.js';
-import { users, classrooms, students, categories, rewards, starLogs, claimedRewards } from '../db/schema.js';
+import { 
+  users, 
+  classrooms, 
+  students, 
+  categories, 
+  rewards, 
+  starLogs, 
+  claimedRewards,
+  attendanceRecords,
+  studentTeams,
+  appMetadata
+} from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { AuthRequest } from '../../server.js';
 
@@ -42,14 +53,20 @@ router.get('/state', async (req: AuthRequest, res) => {
       dbCategories,
       dbRewards,
       dbClaimedRewards,
-      dbStarLogs
+      dbStarLogs,
+      dbAttendance,
+      dbTeams,
+      dbMeta
     ] = await Promise.all([
       db.select().from(classrooms).where(eq(classrooms.userId, userId)),
       db.select().from(students).where(eq(students.userId, userId)),
       db.select().from(categories).where(eq(categories.userId, userId)),
       db.select().from(rewards).where(eq(rewards.userId, userId)),
       db.select().from(claimedRewards).where(eq(claimedRewards.userId, userId)),
-      db.select().from(starLogs).where(eq(starLogs.userId, userId)).orderBy(desc(starLogs.timestamp)).limit(500)
+      db.select().from(starLogs).where(eq(starLogs.userId, userId)).orderBy(desc(starLogs.timestamp)).limit(2000),
+      db.select().from(attendanceRecords).where(eq(attendanceRecords.userId, userId)).limit(2000),
+      db.select().from(studentTeams).where(eq(studentTeams.userId, userId)),
+      db.select().from(appMetadata).where(eq(appMetadata.userId, userId))
     ]);
 
     // Group logs and rewards by studentId
@@ -62,7 +79,7 @@ router.get('/state', async (req: AuthRequest, res) => {
         classroom: log.classroom,
         amount: log.amount,
         category: log.category,
-        note: log.note,
+        note: log.note || '',
         timestamp: log.timestamp
       });
       return acc;
@@ -94,15 +111,47 @@ router.get('/state', async (req: AuthRequest, res) => {
       id: r.rewardId,
       name: r.name,
       requiredStars: r.requiredStars,
-      stock: r.stock,
+      stock: r.stock ?? 10,
       icon: r.icon
     }));
 
+    const mappedAttendance = dbAttendance.map(a => ({
+      id: a.recordId,
+      date: a.date,
+      studentId: a.studentId,
+      studentName: a.studentName,
+      classroom: a.classroom,
+      status: a.status,
+      note: a.note || ''
+    }));
+
+    const mappedTeams = dbTeams.map(t => {
+      let parsedStudentIds: string[] = [];
+      try {
+        parsedStudentIds = JSON.parse(t.studentIds);
+      } catch {
+        parsedStudentIds = [];
+      }
+      return {
+        id: t.teamId,
+        name: t.name,
+        color: t.color,
+        bgLight: t.bgLight,
+        studentIds: parsedStudentIds
+      };
+    });
+
+    const updatedAt = dbMeta[0]?.updatedAt || Date.now();
+
     res.json({
+      updatedAt,
+      hasData: dbStudents.length > 0 || dbClassrooms.length > 0,
       classrooms: dbClassrooms.map(c => c.name),
       students: mappedStudents,
       categories: dbCategories,
-      rewards: mappedRewards
+      rewards: mappedRewards,
+      attendance: mappedAttendance,
+      teams: mappedTeams
     });
   } catch (error) {
     console.error('Error fetching state:', error);
@@ -111,18 +160,24 @@ router.get('/state', async (req: AuthRequest, res) => {
 });
 
 // Update entire state (batch operation)
-// This is to easily mimic the current Firebase behavior where the whole state is saved
 router.post('/state', async (req: AuthRequest, res) => {
   const userId = req.user.dbId;
-  const { classrooms: newClassrooms, students: newStudents, categories: newCategories, rewards: newRewards } = req.body;
+  const { 
+    classrooms: newClassrooms, 
+    students: newStudents, 
+    categories: newCategories, 
+    rewards: newRewards,
+    attendance: newAttendance,
+    teams: newTeams,
+    timestamp: clientTimestamp
+  } = req.body;
   
+  const serverTimestamp = clientTimestamp || Date.now();
+
   try {
     await db.transaction(async (tx) => {
-      // For simplicity, we can delete and re-insert, or intelligently upsert.
-      // Given the simple app context, a full replace or careful upsert is needed.
-      
       // Classrooms
-      if (newClassrooms) {
+      if (newClassrooms && Array.isArray(newClassrooms)) {
         await tx.delete(classrooms).where(eq(classrooms.userId, userId));
         if (newClassrooms.length > 0) {
           await tx.insert(classrooms).values(newClassrooms.map((c: string) => ({ userId, name: c })));
@@ -130,7 +185,7 @@ router.post('/state', async (req: AuthRequest, res) => {
       }
       
       // Students
-      if (newStudents) {
+      if (newStudents && Array.isArray(newStudents)) {
         await tx.delete(starLogs).where(eq(starLogs.userId, userId));
         await tx.delete(claimedRewards).where(eq(claimedRewards.userId, userId));
         await tx.delete(students).where(eq(students.userId, userId));
@@ -142,19 +197,19 @@ router.post('/state', async (req: AuthRequest, res) => {
             name: s.name,
             classroom: s.classroom,
             stars: s.stars,
-            avatar: s.avatar || ''
+            avatar: s.avatar || '⭐'
           })));
 
           const allHistory = newStudents.flatMap((s: any) => (s.starHistory || []).map((h: any) => ({
             userId,
             logId: h.id,
-            studentId: h.studentId,
-            studentName: h.studentName,
-            classroom: h.classroom,
+            studentId: h.studentId || s.id,
+            studentName: h.studentName || s.name,
+            classroom: h.classroom || s.classroom,
             amount: h.amount,
-            category: h.category,
+            category: h.category || 'ความดี',
             note: h.note || '',
-            timestamp: h.timestamp
+            timestamp: h.timestamp || Date.now()
           })));
 
           if (allHistory.length > 0) {
@@ -167,7 +222,7 @@ router.post('/state', async (req: AuthRequest, res) => {
             rewardId: cr.rewardId,
             rewardName: cr.rewardName,
             requiredStars: cr.requiredStars,
-            timestamp: cr.timestamp
+            timestamp: cr.timestamp || Date.now()
           })));
 
           if (allClaimed.length > 0) {
@@ -177,19 +232,19 @@ router.post('/state', async (req: AuthRequest, res) => {
       }
 
       // Categories
-      if (newCategories) {
+      if (newCategories && Array.isArray(newCategories)) {
         await tx.delete(categories).where(eq(categories.userId, userId));
         if (newCategories.length > 0) {
           await tx.insert(categories).values(newCategories.map((c: any) => ({
             userId,
             name: c.name,
-            color: c.color
+            color: c.color || 'text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100'
           })));
         }
       }
 
       // Rewards
-      if (newRewards) {
+      if (newRewards && Array.isArray(newRewards)) {
         await tx.delete(rewards).where(eq(rewards.userId, userId));
         if (newRewards.length > 0) {
           await tx.insert(rewards).values(newRewards.map((r: any) => ({
@@ -197,14 +252,54 @@ router.post('/state', async (req: AuthRequest, res) => {
             rewardId: r.id,
             name: r.name,
             requiredStars: r.requiredStars,
-            stock: r.stock,
-            icon: r.icon
+            stock: r.stock ?? 10,
+            icon: r.icon || '🎁'
           })));
         }
       }
+
+      // Attendance
+      if (newAttendance && Array.isArray(newAttendance)) {
+        await tx.delete(attendanceRecords).where(eq(attendanceRecords.userId, userId));
+        if (newAttendance.length > 0) {
+          await tx.insert(attendanceRecords).values(newAttendance.map((a: any) => ({
+            userId,
+            recordId: a.id,
+            date: a.date,
+            studentId: a.studentId,
+            studentName: a.studentName,
+            classroom: a.classroom,
+            status: a.status,
+            note: a.note || ''
+          })));
+        }
+      }
+
+      // Teams
+      if (newTeams && Array.isArray(newTeams)) {
+        await tx.delete(studentTeams).where(eq(studentTeams.userId, userId));
+        if (newTeams.length > 0) {
+          await tx.insert(studentTeams).values(newTeams.map((t: any) => ({
+            userId,
+            teamId: t.id,
+            name: t.name,
+            color: t.color,
+            bgLight: t.bgLight,
+            studentIds: JSON.stringify(t.studentIds || [])
+          })));
+        }
+      }
+
+      // Update app metadata
+      await tx.delete(appMetadata).where(eq(appMetadata.userId, userId));
+      await tx.insert(appMetadata).values({
+        userId,
+        updatedAt: serverTimestamp,
+        extra: { lastSavedBy: req.user?.email || 'school-app' }
+      });
     });
 
-    res.json({ success: true });
+    res.json({ success: true, updatedAt: serverTimestamp });
   } catch (error) {
     console.error('Error saving state:', error);
     res.status(500).json({ error: 'Failed to save state' });

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Student, Reward, StarLog, StarCategory, AttendanceRecord, AttendanceStatus, StudentTeam } from '../types';
 import { 
   DEFAULT_STUDENTS, 
@@ -11,7 +11,7 @@ import { sounds } from '../lib/audio';
 import { fireStarBurst, fireStarShower, fireBigCelebration } from '../lib/confetti';
 import { emitFloatingParticle } from '../components/FloatingParticles';
 import { auth, loginWithGoogle, loginWithGithub, loginAsGuest, logoutUser } from '../lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { User } from 'firebase/auth';
 
 interface StudentContextType {
   students: Student[];
@@ -25,6 +25,7 @@ interface StudentContextType {
   authLoading: boolean;
   isSyncing: boolean;
   lastSavedTime: Date | null;
+  syncNow: () => Promise<void>;
   
   // Actions
   setActiveClassroom: (classroom: string) => void;
@@ -95,6 +96,7 @@ const STORAGE_KEYS = {
   SOUND: 'stargooddeeds_sound_v2',
   ATTENDANCE: 'stargooddeeds_attendance_v2',
   TEAMS: 'stargooddeeds_teams_v2',
+  LAST_SYNC: 'stargooddeeds_last_sync_v2'
 };
 
 const DEFAULT_TEAMS_DATA: StudentTeam[] = [
@@ -151,13 +153,6 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   });
 
-  const [activeClassroom, setActiveClassroom] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('ส่งงานครบ');
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastSavedTime, setLastSavedTime] = useState<Date | null>(new Date());
-
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
@@ -176,9 +171,26 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   });
 
+  const [activeClassroom, setActiveClassroom] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ส่งงานครบ');
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(false);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSavedTime, setLastSavedTime] = useState<Date | null>(new Date());
   const [isProjectorOpen, setIsProjectorOpen] = useState<boolean>(false);
 
-  // Sync attendance & teams
+  // Sync refs to prevent race conditions and unintended overwrites
+  const isInitialLoadedRef = useRef<boolean>(false);
+  const lastServerTimestampRef = useRef<number>(0);
+  const isSavingRef = useRef<boolean>(false);
+
+  // Keep sound effects sync
+  useEffect(() => {
+    sounds.enabled = soundEnabled;
+    localStorage.setItem(STORAGE_KEYS.SOUND, JSON.stringify(soundEnabled));
+  }, [soundEnabled]);
+
+  // Keep attendance & teams in localStorage as well
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
   }, [attendance]);
@@ -187,96 +199,155 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
   }, [teams]);
 
-  // Keep sound effects sync
-  useEffect(() => {
-    sounds.enabled = soundEnabled;
-    localStorage.setItem(STORAGE_KEYS.SOUND, JSON.stringify(soundEnabled));
-  }, [soundEnabled]);
+  // Fetch state from server and apply if newer
+  const fetchServerState = useCallback(async (isInitial = false) => {
+    try {
+      setIsSyncing(true);
+      const response = await fetch('/api/data/state');
+      if (response.ok) {
+        const data = await response.json();
+        const serverTime = data.updatedAt || 0;
 
-  // Initial load from server Cloud SQL database (works on any device / browser)
-  useEffect(() => {
-    let isMounted = true;
-    const loadServerState = async () => {
-      try {
-        setIsSyncing(true);
-        const response = await fetch('/api/data/state');
-        if (response.ok) {
-          const data = await response.json();
-          if (!isMounted) return;
+        // If it's initial load or server has newer data
+        if (isInitial || serverTime > lastServerTimestampRef.current) {
+          lastServerTimestampRef.current = serverTime;
+          
           if (data.students && Array.isArray(data.students) && data.students.length > 0) {
             setStudents(data.students);
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(data.students));
           }
           if (data.classrooms && Array.isArray(data.classrooms) && data.classrooms.length > 0) {
             setClassrooms(data.classrooms);
+            localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(data.classrooms));
           }
           if (data.rewards && Array.isArray(data.rewards) && data.rewards.length > 0) {
             setRewards(data.rewards);
+            localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(data.rewards));
           }
           if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
             setCategories(data.categories);
+            localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
           }
+          if (data.attendance && Array.isArray(data.attendance)) {
+            setAttendance(data.attendance);
+            localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(data.attendance));
+          }
+          if (data.teams && Array.isArray(data.teams) && data.teams.length > 0) {
+            setTeams(data.teams);
+            localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(data.teams));
+          }
+
+          setLastSavedTime(new Date(serverTime || Date.now()));
         }
-      } catch (err) {
-        console.warn('Initial server state load fallback to localStorage:', err);
-      } finally {
-        if (isMounted) {
-          setIsSyncing(false);
-          setAuthLoading(false);
+
+        // If the server was completely blank on initial setup, seed it with local data
+        if (isInitial && !data.hasData) {
+          await persistStateToServer(students, classrooms, rewards, categories, attendance, teams);
         }
       }
-    };
-
-    loadServerState();
-
-    return () => {
-      isMounted = false;
-    };
+    } catch (err) {
+      console.warn('Sync with server encountered an issue, running from cache:', err);
+    } finally {
+      setIsSyncing(false);
+      if (isInitial) {
+        isInitialLoadedRef.current = true;
+      }
+    }
   }, []);
 
-  // Save changes to localStorage & Cloud Database (Server API)
-  const persistState = useCallback(
-    async (
-      newStudents: Student[],
-      newClassrooms: string[],
-      newRewards: Reward[],
-      newCategories: StarCategory[]
-    ) => {
-      try {
-        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(newStudents));
-        localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(newClassrooms));
-        localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(newRewards));
-        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(newCategories));
-        setLastSavedTime(new Date());
+  // Save state to server API and localStorage
+  const persistStateToServer = async (
+    newStudents: Student[],
+    newClassrooms: string[],
+    newRewards: Reward[],
+    newCategories: StarCategory[],
+    newAttendance: AttendanceRecord[],
+    newTeams: StudentTeam[]
+  ) => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
 
-        setIsSyncing(true);
-        await fetch('/api/data/state', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            students: newStudents,
-            classrooms: newClassrooms,
-            rewards: newRewards,
-            categories: newCategories
-          })
-        });
-        setIsSyncing(false);
-      } catch (err) {
-        console.error('Failed to persist state to server:', err);
-        setIsSyncing(false);
-      }
-    },
-    []
-  );
+    try {
+      setIsSyncing(true);
+      const timestamp = Date.now();
+      lastServerTimestampRef.current = timestamp;
 
-  // Auto-sync when state updates
+      // Save locally first
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(newStudents));
+      localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(newClassrooms));
+      localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(newRewards));
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(newCategories));
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(newAttendance));
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(newTeams));
+      setLastSavedTime(new Date(timestamp));
+
+      // Push to server
+      await fetch('/api/data/state', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          students: newStudents,
+          classrooms: newClassrooms,
+          rewards: newRewards,
+          categories: newCategories,
+          attendance: newAttendance,
+          teams: newTeams,
+          timestamp
+        })
+      });
+    } catch (err) {
+      console.error('Failed to sync changes to server:', err);
+    } finally {
+      isSavingRef.current = false;
+      setIsSyncing(false);
+    }
+  };
+
+  // Initial load on mount
   useEffect(() => {
-    persistState(students, classrooms, rewards, categories);
-  }, [students, classrooms, rewards, categories, persistState]);
+    fetchServerState(true);
+  }, [fetchServerState]);
+
+  // Periodic multi-device live sync & window focus sync
+  useEffect(() => {
+    // Sync on tab focus or visibility return
+    const handleFocus = () => {
+      if (!document.hidden) {
+        fetchServerState(false);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    // Background polling every 4.5 seconds for live multi-device updates
+    const pollInterval = setInterval(() => {
+      if (!document.hidden && !isSavingRef.current) {
+        fetchServerState(false);
+      }
+    }, 4500);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+      clearInterval(pollInterval);
+    };
+  }, [fetchServerState]);
+
+  // Auto-sync when local state changes (ONLY after initial load completed)
+  useEffect(() => {
+    if (!isInitialLoadedRef.current) return;
+    persistStateToServer(students, classrooms, rewards, categories, attendance, teams);
+  }, [students, classrooms, rewards, categories, attendance, teams]);
 
   const toggleSound = () => {
     setSoundEnabled((prev) => !prev);
+  };
+
+  const syncNow = async () => {
+    await fetchServerState(false);
   };
 
   // Add stars to a student
@@ -373,18 +444,17 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     note?: string
   ) => {
     if (studentIds.length === 0) return;
-    const cat = categoryName || selectedCategory || 'มอบดาวทั้งกลุ่ม';
-    sounds.playStarChime(false);
-    fireStarShower();
+    const cat = categoryName || selectedCategory || 'กิจกรรมกลุ่ม';
+    sounds.playBatchStars();
+    fireBigCelebration();
 
-    const now = Date.now();
     setStudents((prev) =>
       prev.map((std) => {
         if (!studentIds.includes(std.id)) return std;
         const newTotal = Math.max(0, Number((std.stars + amount).toFixed(1)));
         const newLog: StarLog = {
-          id: `log-${now}-${Math.random().toString(36).substr(2, 6)}`,
-          timestamp: now,
+          id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          timestamp: Date.now(),
           studentId: std.id,
           studentName: std.name,
           classroom: std.classroom,
@@ -392,6 +462,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
           category: cat,
           note: note || undefined,
         };
+
         return {
           ...std,
           stars: newTotal,
@@ -402,105 +473,83 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Add single student
-  const addStudent = (
-    name: string,
-    classroom: string,
-    avatar?: string,
-    initialStars: number = 0
-  ) => {
+  const addStudent = (name: string, classroom: string, avatar?: string, initialStars: number = 0) => {
     const randomAvatar = avatar || AVATAR_OPTIONS[Math.floor(Math.random() * AVATAR_OPTIONS.length)];
     const newStudent: Student = {
       id: `std-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       name: name.trim(),
-      classroom: classroom.trim() || 'ป.3/1',
+      classroom: classroom.trim(),
       stars: initialStars,
       avatar: randomAvatar,
+      starHistory: initialStars > 0 ? [{
+        id: `log-init-${Date.now()}`,
+        timestamp: Date.now(),
+        studentId: `std-${Date.now()}`,
+        studentName: name.trim(),
+        classroom: classroom.trim(),
+        amount: initialStars,
+        category: 'คะแนนเริ่มต้น',
+      }] : [],
       claimedRewards: [],
-      starHistory: initialStars > 0 ? [
-        {
-          id: `log-${Date.now()}`,
-          timestamp: Date.now(),
-          studentId: `std-${Date.now()}`,
-          studentName: name.trim(),
-          classroom: classroom.trim() || 'ป.3/1',
-          amount: initialStars,
-          category: 'คะแนนเริ่มต้น',
-          note: 'ลงทะเบียนเข้าสู่ระบบ'
-        }
-      ] : [],
       createdAt: Date.now(),
     };
 
     setStudents((prev) => [newStudent, ...prev]);
-
-    // If classroom not in list, add it
-    if (classroom && !classrooms.includes(classroom.trim())) {
-      setClassrooms((prev) => [...prev, classroom.trim()]);
-    }
-    sounds.playClick();
+    sounds.playAddStudent();
   };
 
-  // Bulk add students by pasting lines
-  const batchAddStudents = (namesText: string, targetClassroom: string): number => {
+  // Batch add students from multiline text
+  const batchAddStudents = (namesText: string, classroom: string): number => {
     const lines = namesText
       .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
 
     if (lines.length === 0) return 0;
 
-    const newStudents: Student[] = lines.map((name, index) => {
-      // Pick avatar cyclically
-      const avatar = AVATAR_OPTIONS[(students.length + index) % AVATAR_OPTIONS.length];
+    const newOnes: Student[] = lines.map((nameLine, index) => {
+      const randomAvatar = AVATAR_OPTIONS[(Date.now() + index) % AVATAR_OPTIONS.length];
       return {
         id: `std-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 4)}`,
-        name,
-        classroom: targetClassroom || 'ป.3/1',
+        name: nameLine,
+        classroom: classroom.trim(),
         stars: 0,
-        avatar,
-        claimedRewards: [],
+        avatar: randomAvatar,
         starHistory: [],
-        createdAt: Date.now(),
+        claimedRewards: [],
+        createdAt: Date.now() + index,
       };
     });
 
-    setStudents((prev) => [...newStudents, ...prev]);
-    if (targetClassroom && !classrooms.includes(targetClassroom)) {
-      setClassrooms((prev) => [...prev, targetClassroom]);
-    }
-    sounds.playClick();
-    return newStudents.length;
+    setStudents((prev) => [...newOnes, ...prev]);
+    sounds.playAddStudent();
+    return newOnes.length;
   };
 
-  // Edit student info
+  // Edit student
   const editStudent = (id: string, updates: Partial<Student>) => {
     setStudents((prev) =>
-      prev.map((std) => {
-        if (std.id !== id) return std;
-        return {
-          ...std,
-          ...updates,
-        };
-      })
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
     );
     sounds.playClick();
   };
 
   // Delete student
   const deleteStudent = (id: string) => {
-    setStudents((prev) => prev.filter((std) => std.id !== id));
-    sounds.playDeductSound();
+    setStudents((prev) => prev.filter((s) => s.id !== id));
+    sounds.playClick();
   };
 
-  // Classroom management
+  // Add classroom
   const addClassroom = (name: string): boolean => {
-    const cleanName = name.trim();
-    if (!cleanName || classrooms.includes(cleanName)) return false;
-    setClassrooms((prev) => [...prev, cleanName]);
+    const trimmed = name.trim();
+    if (!trimmed || classrooms.includes(trimmed)) return false;
+    setClassrooms((prev) => [...prev, trimmed]);
     sounds.playClick();
     return true;
   };
 
+  // Delete classroom
   const deleteClassroom = (name: string) => {
     setClassrooms((prev) => prev.filter((c) => c !== name));
     if (activeClassroom === name) {
@@ -509,119 +558,124 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     sounds.playClick();
   };
 
+  // Rename classroom
   const renameClassroom = (oldName: string, newName: string): boolean => {
-    const cleanOld = oldName.trim();
-    const cleanNew = newName.trim();
-    if (!cleanNew || (cleanOld !== cleanNew && classrooms.includes(cleanNew))) return false;
+    const trimmed = newName.trim();
+    if (!trimmed || classrooms.includes(trimmed)) return false;
 
-    setClassrooms((prev) => prev.map((c) => (c === cleanOld ? cleanNew : c)));
+    setClassrooms((prev) => prev.map((c) => (c === oldName ? trimmed : c)));
     setStudents((prev) =>
-      prev.map((s) => (s.classroom === cleanOld ? { ...s, classroom: cleanNew } : s))
+      prev.map((s) => (s.classroom === oldName ? { ...s, classroom: trimmed } : s))
     );
-    if (activeClassroom === cleanOld) {
-      setActiveClassroom(cleanNew);
+    setAttendance((prev) =>
+      prev.map((a) => (a.classroom === oldName ? { ...a, classroom: trimmed } : a))
+    );
+
+    if (activeClassroom === oldName) {
+      setActiveClassroom(trimmed);
     }
     sounds.playClick();
     return true;
   };
 
-  // Reward Management
-  const addReward = (rewardData: Omit<Reward, 'id'>) => {
+  // Add Reward
+  const addReward = (reward: Omit<Reward, 'id'>) => {
     const newReward: Reward = {
-      ...rewardData,
-      id: `rew-${Date.now()}`,
+      ...reward,
+      id: `rew-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     };
     setRewards((prev) => [...prev, newReward]);
     sounds.playClick();
   };
 
+  // Edit Reward
   const editReward = (id: string, updates: Partial<Reward>) => {
     setRewards((prev) =>
-      prev.map((rew) => (rew.id === id ? { ...rew, ...updates } : rew))
+      prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
     );
     sounds.playClick();
   };
 
+  // Delete Reward
   const deleteReward = (id: string) => {
-    setRewards((prev) => prev.filter((rew) => rew.id !== id));
+    setRewards((prev) => prev.filter((r) => r.id !== id));
     sounds.playClick();
   };
 
-  // Claim reward
-  const claimReward = (studentId: string, rewardId: string): { success: boolean; message: string } => {
-    const student = students.find((s) => s.id === studentId);
-    const reward = rewards.find((r) => r.id === rewardId);
+  // Claim Reward
+  const claimReward = (
+    studentId: string,
+    rewardId: string
+  ): { success: boolean; message: string } => {
+    const std = students.find((s) => s.id === studentId);
+    const rew = rewards.find((r) => r.id === rewardId);
 
-    if (!student || !reward) {
+    if (!std || !rew) {
       return { success: false, message: 'ไม่พบข้อมูลนักเรียนหรือของรางวัล' };
     }
 
-    if (student.stars < reward.requiredStars) {
+    if (std.stars < rew.requiredStars) {
       return {
         success: false,
-        message: `ดาวไม่เพียงพอ! ต้องการ ${reward.requiredStars} ดาว (ปัจจุบันมี ${student.stars} ดาว)`,
+        message: `ดาวไม่พอ! น้อง ${std.name} มี ${std.stars} ดาว (ต้องการ ${rew.requiredStars} ดาว)`,
       };
     }
 
-    if (reward.stock !== undefined && reward.stock <= 0) {
-      return { success: false, message: 'ของรางวัลชิ้นนี้หมดแล้ว' };
+    if (rew.stock !== undefined && rew.stock <= 0) {
+      return { success: false, message: 'ขออภัย ของรางวัลนี้หมดแล้ว!' };
     }
 
-    const logId = `claim-${Date.now()}`;
-    const claimTime = Date.now();
+    // Deduct stars & decrease stock
+    const newStars = Number((std.stars - rew.requiredStars).toFixed(1));
+    const claimRecord = {
+      rewardId: rew.id,
+      rewardName: rew.name,
+      requiredStars: rew.requiredStars,
+      timestamp: Date.now(),
+    };
 
-    // Deduct stars & record claim
+    const newLog: StarLog = {
+      id: `log-claim-${Date.now()}`,
+      timestamp: Date.now(),
+      studentId: std.id,
+      studentName: std.name,
+      classroom: std.classroom,
+      amount: -rew.requiredStars,
+      category: 'แลกของรางวัล',
+      note: `แลก: ${rew.name}`,
+    };
+
     setStudents((prev) =>
-      prev.map((std) => {
-        if (std.id !== studentId) return std;
-        const newStars = Math.max(0, Number((std.stars - reward.requiredStars).toFixed(1)));
-        const claimEntry = {
-          rewardId: reward.id,
-          rewardName: reward.name,
-          requiredStars: reward.requiredStars,
-          timestamp: claimTime,
-        };
-        const newLog: StarLog = {
-          id: logId,
-          timestamp: claimTime,
-          studentId: std.id,
-          studentName: std.name,
-          classroom: std.classroom,
-          amount: -reward.requiredStars,
-          category: 'แลกของรางวัล',
-          note: `แลก: ${reward.name} (${reward.requiredStars} ดาว)`,
-        };
-
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
         return {
-          ...std,
+          ...s,
           stars: newStars,
-          claimedRewards: [claimEntry, ...(std.claimedRewards || [])],
-          starHistory: [newLog, ...(std.starHistory || [])],
+          claimedRewards: [claimRecord, ...(s.claimedRewards || [])],
+          starHistory: [newLog, ...(s.starHistory || [])],
         };
       })
     );
 
-    // Decrease stock if limited
-    if (reward.stock !== undefined && reward.stock > 0) {
+    if (rew.stock !== undefined) {
       setRewards((prev) =>
-        prev.map((r) => (r.id === rewardId ? { ...r, stock: (r.stock || 1) - 1 } : r))
+        prev.map((r) => (r.id === rewardId ? { ...r, stock: Math.max(0, (r.stock || 0) - 1) } : r))
       );
     }
 
-    // Celebration
     sounds.playRewardFanfare();
-    fireBigCelebration();
+    fireStarShower();
 
     return {
       success: true,
-      message: `แลกรางวัล "${reward.name}" ให้ ${student.name} สำเร็จ!`,
+      message: `ยินดีด้วย! ${std.name} แลกของรางวัล "${rew.name}" สำเร็จ 🎉`,
     };
   };
 
-  // Category Management
-  const addCategory = (catData: Omit<StarCategory, 'id'>) => {
+  // Categories
+  const addCategory = (cat: Omit<StarCategory, 'id'>) => {
     const newCat: StarCategory = {
-      ...catData,
+      ...cat,
       id: `cat-${Date.now()}`,
     };
     setCategories((prev) => [...prev, newCat]);
@@ -640,73 +694,97 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     sounds.playClick();
   };
 
-  // Attendance Management
-  const markAttendance = (studentId: string, date: string, status: AttendanceStatus, note?: string) => {
-    const student = students.find((s) => s.id === studentId);
-    if (!student) return;
+  // Attendance
+  const markAttendance = (
+    studentId: string,
+    date: string,
+    status: AttendanceStatus,
+    note?: string
+  ) => {
+    const std = students.find((s) => s.id === studentId);
+    if (!std) return;
 
     setAttendance((prev) => {
-      const existingIndex = prev.findIndex((r) => r.studentId === studentId && r.date === date);
-      const newRecord: AttendanceRecord = {
-        id: existingIndex >= 0 ? prev[existingIndex].id : `att-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        date,
+      const existingIdx = prev.findIndex(
+        (a) => a.studentId === studentId && a.date === date
+      );
+      const newRec: AttendanceRecord = {
+        id: `att-${studentId}-${date}`,
         studentId,
-        studentName: student.name,
-        classroom: student.classroom,
+        studentName: std.name,
+        classroom: std.classroom,
+        date,
         status,
         note,
       };
 
-      if (existingIndex >= 0) {
+      if (existingIdx >= 0) {
         const copy = [...prev];
-        copy[existingIndex] = newRecord;
+        copy[existingIdx] = newRec;
         return copy;
-      } else {
-        return [...prev, newRecord];
       }
+      return [newRec, ...prev];
     });
+
     sounds.playClick();
   };
 
-  const batchMarkAttendance = (records: { studentId: string; status: AttendanceStatus }[], date: string) => {
+  const batchMarkAttendance = (
+    records: { studentId: string; status: AttendanceStatus }[],
+    date: string
+  ) => {
     setAttendance((prev) => {
-      const map = new Map<string, AttendanceRecord>();
-      prev.forEach((r) => {
-        if (r.date !== date) {
-          map.set(`${r.studentId}-${r.date}`, r);
+      const copy = [...prev];
+      records.forEach(({ studentId, status }) => {
+        const std = students.find((s) => s.id === studentId);
+        if (!std) return;
+
+        const existingIdx = copy.findIndex(
+          (a) => a.studentId === studentId && a.date === date
+        );
+        const newRec: AttendanceRecord = {
+          id: `att-${studentId}-${date}`,
+          studentId,
+          studentName: std.name,
+          classroom: std.classroom,
+          date,
+          status,
+        };
+
+        if (existingIdx >= 0) {
+          copy[existingIdx] = newRec;
+        } else {
+          copy.push(newRec);
         }
       });
-      records.forEach((rec) => {
-        const student = students.find((s) => s.id === rec.studentId);
-        if (student) {
-          map.set(`${rec.studentId}-${date}`, {
-            id: `att-${Date.now()}-${rec.studentId}`,
-            date,
-            studentId: rec.studentId,
-            studentName: student.name,
-            classroom: student.classroom,
-            status: rec.status,
-          });
-        }
-      });
-      return Array.from(map.values());
+      return copy;
     });
+
     sounds.playClick();
   };
 
+  // Reward stars to all present students for a date
   const rewardPresentStudents = (date: string, amount: number, note: string): number => {
-    const presentRecords = attendance.filter((a) => a.date === date && a.status === 'present');
-    const presentIds = presentRecords.map((r) => r.studentId);
-    if (presentIds.length > 0) {
-      batchAddStars(presentIds, amount, 'ตรงต่อเวลา', note || `มาเรียนตรงเวลา วันที่ ${date}`);
-    }
-    return presentIds.length;
+    const presentRecords = attendance.filter(
+      (a) => a.date === date && a.status === 'present'
+    );
+    const studentIds = presentRecords.map((a) => a.studentId);
+
+    if (studentIds.length === 0) return 0;
+
+    batchAddStars(studentIds, amount, 'มาเรียนตรงเวลา', note || `มาเรียนวันที่ ${date}`);
+    return studentIds.length;
   };
 
-  // Team Management
-  const createTeam = (name: string, color: string, bgLight: string, studentIds: string[] = []) => {
+  // Teams
+  const createTeam = (
+    name: string,
+    color: string,
+    bgLight: string,
+    studentIds: string[] = []
+  ) => {
     const newTeam: StudentTeam = {
-      id: `team-${Date.now()}`,
+      id: `team-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       name,
       color,
       bgLight,
@@ -722,29 +800,31 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const autoSplitTeams = (numTeams: number, classroom: string) => {
-    const filteredStudents = classroom === 'all' 
-      ? [...students] 
-      : students.filter((s) => s.classroom === classroom);
-    
-    const shuffled = [...filteredStudents].sort(() => Math.random() - 0.5);
+    const classroomStudents = students.filter(
+      (s) => classroom === 'all' || s.classroom === classroom
+    );
+    if (classroomStudents.length === 0) return;
 
-    const teamNames = ['ทีมมังกรแดง 🐲', 'ทีมนกอินทรีฟ้า 🦅', 'ทีมเสือเขียว 🐯', 'ทีมสิงโตทอง 🦁', 'ทีมฟีนิกซ์ม่วง 🦅', 'ทีมเพนกวินหิมะ 🐧'];
-    const teamColors = [
+    const shuffled = [...classroomStudents].sort(() => Math.random() - 0.5);
+    const newTeams: StudentTeam[] = [];
+
+    const defaultNames = ['ทีมมังกรแดง 🐲', 'ทีมนกอินทรีฟ้า 🦅', 'ทีมเสือเขียว 🐯', 'ทีมสิงโตทอง 🦁', 'ทีมยูนิคอร์น 🦄', 'ทีมเพนกวิน 🐧'];
+    const colors = [
       { color: 'text-rose-600 border-rose-200 bg-rose-50', bgLight: 'bg-rose-500' },
       { color: 'text-blue-600 border-blue-200 bg-blue-50', bgLight: 'bg-blue-500' },
       { color: 'text-emerald-600 border-emerald-200 bg-emerald-50', bgLight: 'bg-emerald-500' },
       { color: 'text-amber-600 border-amber-200 bg-amber-50', bgLight: 'bg-amber-500' },
       { color: 'text-purple-600 border-purple-200 bg-purple-50', bgLight: 'bg-purple-500' },
-      { color: 'text-cyan-600 border-cyan-200 bg-cyan-50', bgLight: 'bg-cyan-500' },
+      { color: 'text-teal-600 border-teal-200 bg-teal-50', bgLight: 'bg-teal-500' },
     ];
 
-    const newTeams: StudentTeam[] = [];
     for (let i = 0; i < numTeams; i++) {
+      const idx = i % colors.length;
       newTeams.push({
-        id: `team-${i + 1}`,
-        name: teamNames[i % teamNames.length] || `ทีมที่ ${i + 1}`,
-        color: teamColors[i % teamColors.length].color,
-        bgLight: teamColors[i % teamColors.length].bgLight,
+        id: `team-${Date.now()}-${i}`,
+        name: defaultNames[i] || `ทีมกลุ่มที่ ${i + 1}`,
+        color: colors[idx].color,
+        bgLight: colors[idx].bgLight,
         studentIds: [],
       });
     }
@@ -803,6 +883,8 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setClassrooms(DEFAULT_CLASSROOMS);
     setRewards(DEFAULT_REWARDS);
     setCategories(DEFAULT_CATEGORIES);
+    setAttendance([]);
+    setTeams(DEFAULT_TEAMS_DATA);
     setActiveClassroom('all');
     sounds.playClick();
   };
@@ -816,6 +898,8 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       classrooms,
       rewards,
       categories,
+      attendance,
+      teams,
     };
 
     const blob = new Blob([JSON.stringify(backupData, null, 2)], {
@@ -851,116 +935,89 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (data.categories && Array.isArray(data.categories)) {
         setCategories(data.categories);
       }
-
-      sounds.playRewardFanfare();
-      fireStarBurst();
-      return { success: true, message: `นำเข้าข้อมูลเรียบร้อย! นักเรียน ${data.students.length} คน` };
-    } catch (e: any) {
-      return { success: false, message: `เกิดข้อผิดพลาดในการอ่านไฟล์: ${e.message}` };
-    }
-  };
-
-  // Export as Code string (Base64 encoded JSON for easy copy-pasting)
-  const exportBackupCode = (): string => {
-    const backupData = {
-      version: '2.0',
-      exportedAt: new Date().toISOString(),
-      students,
-      classrooms,
-      rewards,
-      categories,
-      attendance,
-    };
-    try {
-      const jsonStr = JSON.stringify(backupData);
-      // UTF-8 safe base64 encoding
-      const utf8Bytes = new TextEncoder().encode(jsonStr);
-      let binaryStr = '';
-      for (let i = 0; i < utf8Bytes.length; i++) {
-        binaryStr += String.fromCharCode(utf8Bytes[i]);
-      }
-      const base64 = btoa(binaryStr);
-      return `STAR-${base64}`;
-    } catch (e) {
-      return JSON.stringify(backupData);
-    }
-  };
-
-  // Import from Code string (Base64 or raw JSON)
-  const importBackupCode = (codeString: string): { success: boolean; message: string } => {
-    const trimmed = codeString.trim();
-    if (!trimmed) {
-      return { success: false, message: 'กรุณากรอกหรือวางรหัสโค้ดข้อมูล' };
-    }
-
-    try {
-      let jsonString = '';
-      if (trimmed.startsWith('STAR-')) {
-        const base64Part = trimmed.slice(5);
-        const binaryStr = atob(base64Part);
-        const bytes = new Uint8Array(binaryStr.length);
-        for (let i = 0; i < binaryStr.length; i++) {
-          bytes[i] = binaryStr.charCodeAt(i);
-        }
-        jsonString = new TextDecoder().decode(bytes);
-      } else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-        jsonString = trimmed;
-      } else {
-        // Try decoding raw base64
-        try {
-          const binaryStr = atob(trimmed);
-          const bytes = new Uint8Array(binaryStr.length);
-          for (let i = 0; i < binaryStr.length; i++) {
-            bytes[i] = binaryStr.charCodeAt(i);
-          }
-          jsonString = new TextDecoder().decode(bytes);
-        } catch {
-          jsonString = trimmed;
-        }
-      }
-
-      const data = JSON.parse(jsonString);
-      if (!data.students || !Array.isArray(data.students)) {
-        return { success: false, message: 'รหัสโค้ดไม่ถูกต้อง หรือรูปแบบข้อมูลไม่สมบูรณ์ (ไม่พบข้อมูลนักเรียน)' };
-      }
-
-      setStudents(data.students);
-      if (data.classrooms && Array.isArray(data.classrooms)) {
-        setClassrooms(data.classrooms);
-      }
-      if (data.rewards && Array.isArray(data.rewards)) {
-        setRewards(data.rewards);
-      }
-      if (data.categories && Array.isArray(data.categories)) {
-        setCategories(data.categories);
-      }
       if (data.attendance && Array.isArray(data.attendance)) {
         setAttendance(data.attendance);
       }
+      if (data.teams && Array.isArray(data.teams)) {
+        setTeams(data.teams);
+      }
 
       sounds.playRewardFanfare();
-      fireStarBurst();
-      return { success: true, message: `โหลดข้อมูลสำเร็จ! นักเรียน ${data.students.length} คน` };
-    } catch (e: any) {
-      return { success: false, message: `รหัสโค้ดไม่ถูกต้อง กรุณาตรวจสอบโค้ดอีกครั้ง (${e.message})` };
+      fireBigCelebration();
+      return { success: true, message: `นำเข้าข้อมูลสำเร็จ! พบนักเรียนทั้งหมด ${data.students.length} คน` };
+    } catch (err: any) {
+      return { success: false, message: `เกิดข้อผิดพลาดในการอ่านไฟล์: ${err.message}` };
     }
   };
 
-  // Get aggregated history logs sorted by timestamp descending
+  // Export compact Base64 backup code
+  const exportBackupCode = (): string => {
+    const backupData = {
+      v: '2.0',
+      t: Date.now(),
+      s: students,
+      c: classrooms,
+      r: rewards,
+      cat: categories,
+      att: attendance,
+      tm: teams
+    };
+
+    try {
+      const jsonStr = JSON.stringify(backupData);
+      const encoded = btoa(encodeURIComponent(jsonStr));
+      return `STAR-${encoded}`;
+    } catch (err) {
+      console.error('Failed to generate backup code:', err);
+      return '';
+    }
+  };
+
+  // Import compact Base64 backup code
+  const importBackupCode = (codeString: string): { success: boolean; message: string } => {
+    try {
+      let raw = codeString.trim();
+      if (raw.startsWith('STAR-')) {
+        raw = raw.slice(5);
+      }
+
+      const jsonStr = decodeURIComponent(atob(raw));
+      const data = JSON.parse(jsonStr);
+
+      if (!data.s || !Array.isArray(data.s)) {
+        return { success: false, message: 'รหัสโค้ดไม่ถูกต้อง หรือรูปแบบข้อมูลเสียหาย' };
+      }
+
+      setStudents(data.s);
+      if (data.c && Array.isArray(data.c)) setClassrooms(data.c);
+      if (data.r && Array.isArray(data.r)) setRewards(data.r);
+      if (data.cat && Array.isArray(data.cat)) setCategories(data.cat);
+      if (data.att && Array.isArray(data.att)) setAttendance(data.att);
+      if (data.tm && Array.isArray(data.tm)) setTeams(data.tm);
+
+      sounds.playRewardFanfare();
+      fireBigCelebration();
+      return {
+        success: true,
+        message: `กู้คืนข้อมูลสำเร็จ! มีนักเรียน ${data.s.length} คน และ ${data.c?.length || 0} ห้องเรียน`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: 'รหัสโค้ดไม่ถูกต้อง กรุณาคัดลอกรหัสใหม่ให้ครบถ้วน',
+      };
+    }
+  };
+
+  // Get all star logs across all students
   const getAllStarLogs = (): StarLog[] => {
-    const allLogs: StarLog[] = [];
-    students.forEach((std) => {
-      if (std.starHistory && std.starHistory.length > 0) {
-        std.starHistory.forEach((log) => {
-          allLogs.push({
-            ...log,
-            studentName: std.name,
-            classroom: std.classroom,
-          });
-        });
+    const logs: StarLog[] = [];
+    students.forEach((s) => {
+      if (s.starHistory && s.starHistory.length > 0) {
+        logs.push(...s.starHistory);
       }
     });
-    return allLogs.sort((a, b) => b.timestamp - a.timestamp);
+    return logs.sort((a, b) => b.timestamp - a.timestamp);
   };
 
   return (
@@ -977,6 +1034,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         authLoading,
         isSyncing,
         lastSavedTime,
+        syncNow,
         setActiveClassroom,
         setSelectedCategory,
         toggleSound,
