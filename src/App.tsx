@@ -17,10 +17,12 @@ import { BadgesView } from './components/BadgesView';
 import { ReportsView } from './components/ReportsView';
 import { GoogleSheetsView } from './components/GoogleSheetsView';
 import { ProjectorModal } from './components/ProjectorModal';
+import { ChangelogModal } from './components/ChangelogModal';
 
 function MainAppContent() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#f8f9ff] text-slate-900 selection:bg-purple-200 selection:text-purple-900 flex flex-col">
@@ -28,6 +30,7 @@ function MainAppContent() {
         currentTab={currentTab}
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenBackup={() => setIsBackupOpen(true)}
+        onOpenChangelog={() => setIsChangelogOpen(true)}
       />
 
       <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
@@ -57,6 +60,10 @@ function MainAppContent() {
       <BackupRestoreModal
         isOpen={isBackupOpen}
         onClose={() => setIsBackupOpen(false)}
+      />
+      <ChangelogModal
+        isOpen={isChangelogOpen}
+        onClose={() => setIsChangelogOpen(false)}
       />
       <ProjectorModal />
       <FloatingParticles />

@@ -11,9 +11,10 @@ interface Props {
   currentTab: TabType;
   onSelectTab: (tab: TabType) => void;
   onOpenBackup: () => void;
+  onOpenChangelog: () => void;
 }
 
-export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup }) => {
+export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup, onOpenChangelog }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { activeClassroom, setActiveClassroom, classrooms, setIsProjectorOpen, isSyncing, syncNow } = useStudents();
   
@@ -160,6 +161,23 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
               </div>
             </div>
             <DownloadCloud className="w-4 h-4 text-slate-400 group-hover:text-purple-600 transition-colors" />
+          </button>
+
+          {/* Changelog Button */}
+          <button
+            onClick={onOpenChangelog}
+            className="w-full flex items-center justify-between p-2.5 bg-slate-100 hover:bg-slate-200/80 rounded-2xl transition-all cursor-pointer group text-slate-700"
+          >
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 font-black text-xs">
+                v2.5
+              </div>
+              <div className="text-left min-w-0">
+                <div className="text-xs font-bold text-slate-800">ประวัติการอัปเดต</div>
+                <div className="text-[10px] text-emerald-700 font-semibold">Changelog (ล่าสุด v2.5.0)</div>
+              </div>
+            </div>
+            <Sparkles className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
           </button>
         </div>
       </aside>

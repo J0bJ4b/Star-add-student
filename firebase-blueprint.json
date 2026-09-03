@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "TeacherData": {
+      "title": "Teacher Data",
+      "description": "Master data for classrooms, students, rewards, categories, attendance, and teams owned by a teacher/school account",
+      "type": "object",
+      "properties": {
+        "classrooms": {
+          "type": "array",
+          "description": "List of classroom names"
+        },
+        "students": {
+          "type": "array",
+          "description": "List of student records"
+        },
+        "categories": {
+          "type": "array",
+          "description": "List of star category definitions"
+        },
+        "rewards": {
+          "type": "array",
+          "description": "List of reward store items"
+        },
+        "attendance": {
+          "type": "array",
+          "description": "List of daily attendance records"
+        },
+        "teams": {
+          "type": "array",
+          "description": "List of student team definitions"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp when data was last updated"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/teachers/{teacherId}": {
+      "schema": {
+        "$ref": "#/entities/TeacherData"
+      },
+      "description": "Document holding teacher app state"
+    }
+  }
+}
