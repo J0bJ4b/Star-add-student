@@ -1,0 +1,203 @@
+import React, { useState } from 'react';
+import { 
+  Home, Star, Users, Award, Gift, History, Menu, X, Cloud, LogOut, Database, RefreshCw, Volume2, VolumeX
+} from 'lucide-react';
+import { TabType } from '../types';
+import { useStudents } from '../context/StudentContext';
+import { auth, loginWithGoogle, logoutUser } from '../lib/firebase';
+import { sounds } from '../lib/audio';
+
+interface Props {
+  currentTab: TabType;
+  onSelectTab: (tab: TabType) => void;
+  onOpenBackup: () => void;
+}
+
+export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { activeClassroom, setActiveClassroom, classrooms, user } = useStudents();
+  
+  // Assuming audio toggle is in a global state or just use a local one for UI
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  
+  const toggleSound = () => {
+    setSoundEnabled(!soundEnabled);
+    sounds.toggleMute();
+  };
+
+  const navItems: { id: TabType; label: string; icon: React.ReactNode }[] = [
+    { id: 'dashboard', label: 'หน้าแรก', icon: <Home className="w-5 h-5" /> },
+    { id: 'add-star', label: 'ให้ดาว', icon: <Star className="w-5 h-5" /> },
+    { id: 'students', label: 'นักเรียน', icon: <Users className="w-5 h-5" /> },
+    { id: 'leaderboard', label: 'สรุปอันดับ', icon: <Award className="w-5 h-5" /> },
+    { id: 'rewards', label: 'แลกรางวัล', icon: <Gift className="w-5 h-5" /> },
+    { id: 'history', label: 'ประวัติ', icon: <History className="w-5 h-5" /> },
+  ];
+
+  const handleTabClick = (id: TabType) => {
+    onSelectTab(id);
+    setMobileMenuOpen(false);
+  };
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 fixed inset-y-0 left-0 z-40 shadow-sm">
+        <div className="p-6">
+          <div className="flex items-center space-x-2 text-orange-500">
+            <Star className="w-8 h-8 fill-orange-500" />
+            <span className="text-xl font-black font-heading tracking-wide">ดาวเด็กดี</span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1 ml-1 font-medium">ระบบสะสมดาว & ความดี</p>
+        </div>
+
+        <div className="px-4 pb-4">
+          <div className="mb-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">เลือกห้องเรียน</label>
+            <select
+              value={activeClassroom}
+              onChange={(e) => setActiveClassroom(e.target.value)}
+              className="mt-1 w-full text-sm font-semibold bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+            >
+              <option value="all">ทุกห้องเรียน</option>
+              {classrooms.map((c) => (
+                <option key={c} value={c}>ห้อง {c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto pb-4">
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2 mb-2 mt-4">เมนูหลัก</div>
+          {navItems.map((item) => {
+            const isActive = currentTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleTabClick(item.id)}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
+                  isActive
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                    : 'text-slate-600 hover:bg-orange-50 hover:text-orange-600'
+                }`}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-slate-100 bg-slate-50">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={toggleSound}
+              className={`p-2 rounded-xl transition-colors ${
+                soundEnabled ? 'bg-white text-orange-500 shadow-sm' : 'bg-slate-200 text-slate-500'
+              }`}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={onOpenBackup}
+              className="p-2 bg-white text-slate-600 rounded-xl shadow-sm hover:text-orange-600 transition-colors"
+              title="สำรองข้อมูล"
+            >
+              <Database className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="w-full flex items-center justify-between bg-white border border-slate-200 p-2 rounded-xl hover:border-orange-300 transition-colors"
+              >
+                <div className="flex items-center space-x-2 overflow-hidden">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} className="w-6 h-6 rounded-full" alt="profile" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs">
+                      {user.email?.[0].toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <span className="text-xs font-bold text-slate-700 truncate">{user.displayName || user.email}</span>
+                </div>
+              </button>
+              {userMenuOpen && (
+                <div className="absolute bottom-full mb-2 w-full bg-white rounded-xl shadow-lg border border-slate-100 p-2 z-50">
+                   <button
+                     onClick={() => { logoutUser(); setUserMenuOpen(false); }}
+                     className="w-full flex items-center space-x-2 p-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                   >
+                     <LogOut className="w-4 h-4" />
+                     <span>ออกจากระบบ</span>
+                   </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={loginWithGoogle}
+              className="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white p-2 rounded-xl text-xs font-bold transition-colors shadow-sm"
+            >
+              <Cloud className="w-4 h-4" />
+              <span>Login / Sync</span>
+            </button>
+          )}
+        </div>
+      </aside>
+
+      {/* Mobile Topbar */}
+      <header className="lg:hidden bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-orange-500">
+            <Star className="w-6 h-6 fill-orange-500" />
+            <span className="text-lg font-black font-heading">ดาวเด็กดี</span>
+          </div>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 text-slate-600 bg-slate-50 rounded-xl"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {mobileMenuOpen && (
+          <div className="px-4 py-4 border-t border-slate-100 bg-slate-50 space-y-4">
+             <select
+                value={activeClassroom}
+                onChange={(e) => setActiveClassroom(e.target.value)}
+                className="w-full text-sm font-semibold bg-white border border-slate-200 text-slate-700 rounded-xl px-3 py-2"
+              >
+                <option value="all">ทุกห้องเรียน</option>
+                {classrooms.map((c) => (
+                  <option key={c} value={c}>ห้อง {c}</option>
+                ))}
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                {navItems.map((item) => {
+                  const isActive = currentTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleTabClick(item.id)}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                        isActive
+                          ? 'bg-orange-500 text-white shadow-md'
+                          : 'bg-white text-slate-600 border border-slate-200'
+                      }`}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+          </div>
+        )}
+      </header>
+    </>
+  );
+};

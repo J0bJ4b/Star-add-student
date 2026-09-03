@@ -6,6 +6,8 @@ import { useStudents } from '../context/StudentContext';
 import { Student } from '../types';
 import { StudentDetailModal } from './StudentDetailModal';
 
+import { StudentFormModal } from './StudentFormModal';
+
 interface Props {
   onOpenBackup: () => void;
 }
@@ -17,6 +19,8 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [sortMethod, setSortMethod] = useState<'stars' | 'id'>('stars');
   const [selectedStudentForDetail, setSelectedStudentForDetail] = useState<Student | null>(null);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDarkTheme, setIsDarkTheme] = useState(false); // Mock for UI
   const [isSoundOn, setIsSoundOn] = useState(true);
 
@@ -71,7 +75,12 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
             <Users className="w-4 h-4" />
             <span>จัดการห้องเรียน</span>
           </button>
-          <button className="px-4 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-xl text-sm font-bold shadow-md shadow-orange-500/20 flex items-center space-x-2 transition-colors">
+          <button 
+            onClick={() => {
+              setEditingStudent(null);
+              setIsFormModalOpen(true);
+            }}
+            className="px-4 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-xl text-sm font-bold shadow-md shadow-orange-500/20 flex items-center space-x-2 transition-colors">
             <Plus className="w-4 h-4" />
             <span>เพิ่มนักเรียน</span>
           </button>
@@ -242,7 +251,12 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
                     <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-3xl overflow-hidden shadow-inner">
                       {student.avatar.length > 2 ? <img src={student.avatar} className="w-full h-full object-cover" /> : student.avatar}
                     </div>
-                    <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center border-2 border-white transition-colors">
+                    <button 
+                      onClick={() => {
+                        setEditingStudent(student);
+                        setIsFormModalOpen(true);
+                      }}
+                      className="absolute -bottom-1 -right-1 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center border-2 border-white transition-colors">
                       <Edit3 className="w-3 h-3" />
                     </button>
                   </div>
@@ -254,10 +268,21 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
                     <button onClick={() => setSelectedStudentForDetail(student)} className="w-6 h-6 rounded-full bg-slate-50 hover:bg-purple-100 text-slate-400 hover:text-purple-600 flex items-center justify-center transition-colors">
                       <Gift className="w-3.5 h-3.5" />
                     </button>
-                    <button className="w-6 h-6 rounded-full bg-slate-50 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors">
+                    <button 
+                      onClick={() => {
+                        setEditingStudent(student);
+                        setIsFormModalOpen(true);
+                      }}
+                      className="w-6 h-6 rounded-full bg-slate-50 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors">
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
-                    <button className="w-6 h-6 rounded-full bg-slate-50 hover:bg-rose-100 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors">
+                    <button 
+                      onClick={() => {
+                        if (confirm(`คุณต้องการลบรายชื่อ "${student.name}" ใช่หรือไม่?`)) {
+                          deleteStudent(student.id);
+                        }
+                      }}
+                      className="w-6 h-6 rounded-full bg-slate-50 hover:bg-rose-100 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -327,6 +352,13 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
         <StudentDetailModal 
           student={selectedStudentForDetail} 
           onClose={() => setSelectedStudentForDetail(null)} 
+        />
+      )}
+
+      {isFormModalOpen && (
+        <StudentFormModal 
+          student={editingStudent}
+          onClose={() => setIsFormModalOpen(false)}
         />
       )}
     </div>
