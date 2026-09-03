@@ -10,8 +10,9 @@ import {
 import { sounds } from '../lib/audio';
 import { fireStarBurst, fireStarShower, fireBigCelebration } from '../lib/confetti';
 import { emitFloatingParticle } from '../components/FloatingParticles';
-import { auth, loginWithGoogle, loginWithGithub, loginAsGuest, logoutUser, getAccessToken, setAccessToken } from '../lib/firebase';
+import { auth, db, loginWithGoogle, loginWithGithub, loginAsGuest, logoutUser, getAccessToken, setAccessToken } from '../lib/firebase';
 import { User, onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { 
   createAndPopulateSpreadsheet, 
   updateAllTabsInSpreadsheet, 
@@ -469,6 +470,60 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
   }, [teams]);
 
+  // Firestore Realtime Listener (Instant multi-device sync across Vercel & devices)
+  useEffect(() => {
+    if (!db) return;
+    const docId = user?.uid || 'shared-school';
+    const docRef = doc(db, 'teachers', docId);
+
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          const serverTime = data.updatedAt || 0;
+
+          if (serverTime > lastServerTimestampRef.current) {
+            lastServerTimestampRef.current = serverTime;
+
+            if (data.students && Array.isArray(data.students) && data.students.length > 0) {
+              setStudents(data.students);
+              localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(data.students));
+            }
+            if (data.classrooms && Array.isArray(data.classrooms) && data.classrooms.length > 0) {
+              setClassrooms(data.classrooms);
+              localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(data.classrooms));
+            }
+            if (data.rewards && Array.isArray(data.rewards) && data.rewards.length > 0) {
+              setRewards(data.rewards);
+              localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(data.rewards));
+            }
+            if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+              setCategories(data.categories);
+              localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
+            }
+            if (data.attendance && Array.isArray(data.attendance)) {
+              setAttendance(data.attendance);
+              localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(data.attendance));
+            }
+            if (data.teams && Array.isArray(data.teams) && data.teams.length > 0) {
+              setTeams(data.teams);
+              localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(data.teams));
+            }
+
+            setLastSavedTime(new Date(serverTime || Date.now()));
+          }
+        }
+        isInitialLoadedRef.current = true;
+      },
+      (error) => {
+        console.warn('Firestore realtime sync warning:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
   // Fetch state from server and apply if newer
   const fetchServerState = useCallback(async (isInitial = false) => {
     try {
@@ -516,7 +571,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     } catch (err) {
-      console.warn('Sync with server encountered an issue, running from cache:', err);
+      console.warn('Sync with server API encountered an issue, running from cache/Firestore:', err);
     } finally {
       setIsSyncing(false);
       if (isInitial) {
@@ -525,7 +580,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Save state to server API and localStorage
+  // Save state to Firestore, server API, and localStorage
   const persistStateToServer = async (
     newStudents: Student[],
     newClassrooms: string[],
@@ -551,8 +606,26 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(newTeams));
       setLastSavedTime(new Date(timestamp));
 
-      // Push to server
-      await fetch('/api/data/state', {
+      // Push to Firestore Cloud Database (for Vercel & real-time multi-device sync)
+      if (db) {
+        const docId = user?.uid || 'shared-school';
+        setDoc(
+          doc(db, 'teachers', docId),
+          {
+            students: newStudents,
+            classrooms: newClassrooms,
+            rewards: newRewards,
+            categories: newCategories,
+            attendance: newAttendance,
+            teams: newTeams,
+            updatedAt: timestamp,
+          },
+          { merge: true }
+        ).catch((err) => console.warn('Firestore setDoc notice:', err));
+      }
+
+      // Push to Express server (if running fullstack)
+      fetch('/api/data/state', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -564,11 +637,11 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
           categories: newCategories,
           attendance: newAttendance,
           teams: newTeams,
-          timestamp
-        })
-      });
+          timestamp,
+        }),
+      }).catch(() => {});
     } catch (err) {
-      console.error('Failed to sync changes to server:', err);
+      console.error('Failed to sync changes:', err);
     } finally {
       isSavingRef.current = false;
       setIsSyncing(false);
