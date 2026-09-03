@@ -20,6 +20,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+import { getSupabaseConfig, saveSupabaseConfig } from '../lib/supabase';
+
 interface BackupRestoreModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -49,7 +51,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     syncToLinkedGoogleSheet,
   } = useStudents();
 
-  const [activeTab, setActiveTab] = useState<'code' | 'file' | 'sheets'>('code');
+  const [activeTab, setActiveTab] = useState<'code' | 'file' | 'sheets' | 'supabase'>('code');
   const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [codeInputValue, setCodeInputValue] = useState('');
@@ -57,6 +59,10 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   const [isCopied, setIsCopied] = useState(false);
   const [manualSyncing, setManualSyncing] = useState(false);
   const [sheetsSyncing, setSheetsSyncing] = useState(false);
+
+  const initialSupabaseConfig = getSupabaseConfig();
+  const [supabaseUrl, setSupabaseUrl] = useState(initialSupabaseConfig.url);
+  const [supabaseKey, setSupabaseKey] = useState(initialSupabaseConfig.key);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -201,7 +207,18 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
             }`}
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Google Sheets 📊</span>
+            <span>Google Sheets</span>
+          </button>
+          <button
+            onClick={() => { setActiveTab('supabase'); setImportStatus(null); }}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+              activeTab === 'supabase'
+                ? 'bg-white text-emerald-700 shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Database className="w-4 h-4 text-emerald-600" />
+            <span>Supabase ⚡</span>
           </button>
         </div>
 
@@ -399,7 +416,98 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
           </div>
         )}
 
-        {/* TAB 3: Google Sheets Mode */}
+        {/* TAB 4: Supabase Database Mode */}
+        {activeTab === 'supabase' && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                  <Database className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-emerald-950 font-heading">
+                    ฐานข้อมูล Supabase (PostgreSQL Cloud) ⚡
+                  </h4>
+                  <p className="text-[11px] text-emerald-700">
+                    เชื่อมต่อฐานข้อมูล Supabase เพื่อซิงค์ข้อมูลตรงกันทุกเครื่องแบบ Real-Time
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white p-3.5 rounded-xl border border-emerald-200 space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Supabase Project URL:
+                  </label>
+                  <input
+                    type="text"
+                    value={supabaseUrl}
+                    onChange={(e) => setSupabaseUrl(e.target.value)}
+                    placeholder="https://your-project.supabase.co"
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Supabase Anon Key:
+                  </label>
+                  <input
+                    type="password"
+                    value={supabaseKey}
+                    onChange={(e) => setSupabaseKey(e.target.value)}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+                <div className="pt-1 flex gap-2">
+                  <button
+                    onClick={() => {
+                      saveSupabaseConfig(supabaseUrl, supabaseKey);
+                      setImportStatus({
+                        type: 'success',
+                        text: 'บันทึกการตั้งค่า Supabase เรียบร้อยแล้ว! ระบบกำลังเชื่อมต่อและซิงค์ข้อมูล...',
+                      });
+                      syncNow();
+                    }}
+                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                  >
+                    บันทึกการตั้งค่า & ซิงค์ข้อมูล
+                  </button>
+                  {(supabaseUrl || supabaseKey) && (
+                    <button
+                      onClick={() => {
+                        setSupabaseUrl('');
+                        setSupabaseKey('');
+                        saveSupabaseConfig('', '');
+                        setImportStatus({
+                          type: 'success',
+                          text: 'ล้างการตั้งค่า Supabase คัสตอมเรียบร้อยแล้ว',
+                        });
+                      }}
+                      className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                    >
+                      ล้างค่า
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-emerald-100/60 rounded-xl text-[10px] text-emerald-800 leading-relaxed">
+                💡 <b>วิธีสร้างตารางง่ายๆ ใน Supabase SQL Editor:</b><br />
+                <code className="block bg-white/90 p-1.5 rounded mt-1 text-[9.5px] font-mono text-emerald-900 border border-emerald-200 overflow-x-auto">
+                  CREATE TABLE public.school_state (<br />
+                  &nbsp;&nbsp;id text PRIMARY KEY,<br />
+                  &nbsp;&nbsp;data jsonb NOT NULL,<br />
+                  &nbsp;&nbsp;updated_at timestamp with time zone DEFAULT now()<br />
+                  );<br />
+                  ALTER TABLE public.school_state REPLICA IDENTITY FULL;
+                </code>
+              </div>
+            </div>
+          </div>
+        )}
         {activeTab === 'sheets' && (
           <div className="space-y-4 animate-fade-in">
             <div className="p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 space-y-3">

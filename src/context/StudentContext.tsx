@@ -14,6 +14,11 @@ import { auth, db, loginWithGoogle, loginWithGithub, loginAsGuest, logoutUser, g
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { 
+  subscribeToSupabase, 
+  saveStateToSupabase, 
+  fetchStateFromSupabase 
+} from '../lib/supabase';
+import { 
   createAndPopulateSpreadsheet, 
   updateAllTabsInSpreadsheet, 
   readSpreadsheetRange, 
@@ -524,10 +529,87 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => unsubscribe();
   }, [user]);
 
+  // Supabase Realtime Listener (Instant multi-device sync across Vercel & devices)
+  useEffect(() => {
+    const docId = user?.uid || 'shared-school-data';
+    const unsubscribe = subscribeToSupabase((data) => {
+      const serverTime = data.updatedAt || 0;
+      if (serverTime > lastServerTimestampRef.current) {
+        lastServerTimestampRef.current = serverTime;
+
+        if (data.students && Array.isArray(data.students) && data.students.length > 0) {
+          setStudents(data.students);
+          localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(data.students));
+        }
+        if (data.classrooms && Array.isArray(data.classrooms) && data.classrooms.length > 0) {
+          setClassrooms(data.classrooms);
+          localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(data.classrooms));
+        }
+        if (data.rewards && Array.isArray(data.rewards) && data.rewards.length > 0) {
+          setRewards(data.rewards);
+          localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(data.rewards));
+        }
+        if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+          setCategories(data.categories);
+          localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
+        }
+        if (data.attendance && Array.isArray(data.attendance)) {
+          setAttendance(data.attendance);
+          localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(data.attendance));
+        }
+        if (data.teams && Array.isArray(data.teams) && data.teams.length > 0) {
+          setTeams(data.teams);
+          localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(data.teams));
+        }
+
+        setLastSavedTime(new Date(serverTime || Date.now()));
+      }
+    }, docId);
+
+    return () => unsubscribe();
+  }, [user]);
+
   // Fetch state from server and apply if newer
   const fetchServerState = useCallback(async (isInitial = false) => {
     try {
       setIsSyncing(true);
+
+      // Try Supabase fetch first
+      const supabaseData = await fetchStateFromSupabase(user?.uid || 'shared-school-data');
+      if (supabaseData && supabaseData.updatedAt) {
+        const serverTime = supabaseData.updatedAt;
+        if (isInitial || serverTime > lastServerTimestampRef.current) {
+          lastServerTimestampRef.current = serverTime;
+
+          if (supabaseData.students && Array.isArray(supabaseData.students) && supabaseData.students.length > 0) {
+            setStudents(supabaseData.students);
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(supabaseData.students));
+          }
+          if (supabaseData.classrooms && Array.isArray(supabaseData.classrooms) && supabaseData.classrooms.length > 0) {
+            setClassrooms(supabaseData.classrooms);
+            localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(supabaseData.classrooms));
+          }
+          if (supabaseData.rewards && Array.isArray(supabaseData.rewards) && supabaseData.rewards.length > 0) {
+            setRewards(supabaseData.rewards);
+            localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(supabaseData.rewards));
+          }
+          if (supabaseData.categories && Array.isArray(supabaseData.categories) && supabaseData.categories.length > 0) {
+            setCategories(supabaseData.categories);
+            localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(supabaseData.categories));
+          }
+          if (supabaseData.attendance && Array.isArray(supabaseData.attendance)) {
+            setAttendance(supabaseData.attendance);
+            localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(supabaseData.attendance));
+          }
+          if (supabaseData.teams && Array.isArray(supabaseData.teams) && supabaseData.teams.length > 0) {
+            setTeams(supabaseData.teams);
+            localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(supabaseData.teams));
+          }
+
+          setLastSavedTime(new Date(serverTime));
+        }
+      }
+
       const response = await fetch('/api/data/state');
       if (response.ok) {
         const data = await response.json();
@@ -571,7 +653,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     } catch (err) {
-      console.warn('Sync with server API encountered an issue, running from cache/Firestore:', err);
+      console.warn('Sync with server API encountered an issue, running from cache/Firestore/Supabase:', err);
     } finally {
       setIsSyncing(false);
       if (isInitial) {
@@ -580,7 +662,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Save state to Firestore, server API, and localStorage
+  // Save state to Supabase, Firestore, server API, and localStorage
   const persistStateToServer = async (
     newStudents: Student[],
     newClassrooms: string[],
@@ -606,7 +688,21 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(newTeams));
       setLastSavedTime(new Date(timestamp));
 
-      // Push to Firestore Cloud Database (for Vercel & real-time multi-device sync)
+      // Push to Supabase Cloud Database (Primary cloud database option)
+      saveStateToSupabase(
+        {
+          students: newStudents,
+          classrooms: newClassrooms,
+          rewards: newRewards,
+          categories: newCategories,
+          attendance: newAttendance,
+          teams: newTeams,
+          updatedAt: timestamp,
+        },
+        user?.uid || 'shared-school-data'
+      ).catch((err) => console.warn('Supabase save notice:', err));
+
+      // Push to Firestore Cloud Database
       if (db) {
         const docId = user?.uid || 'shared-school';
         setDoc(
