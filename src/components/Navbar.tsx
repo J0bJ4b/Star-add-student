@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { 
   Home, Star, Users, Award, Gift, History, Menu, X, Cloud, LogOut, Database, RefreshCw, Volume2, VolumeX, GraduationCap,
-  Sparkles, CheckCircle2, BookmarkCheck, FileText, Monitor
+  Sparkles, CheckCircle2, BookmarkCheck, FileText, Monitor, Github
 } from 'lucide-react';
 import { TabType } from '../types';
 import { useStudents } from '../context/StudentContext';
-import { auth, loginWithGoogle, logoutUser } from '../lib/firebase';
+import { logoutUser } from '../lib/firebase';
 import { sounds } from '../lib/audio';
+import { AuthModal } from './AuthModal';
 
 interface Props {
   currentTab: TabType;
@@ -17,6 +18,7 @@ interface Props {
 export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { activeClassroom, setActiveClassroom, classrooms, user, setIsProjectorOpen } = useStudents();
   
   // Assuming audio toggle is in a global state or just use a local one for UI
@@ -136,24 +138,40 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-full flex items-center justify-between bg-white border border-slate-200 p-2 rounded-xl hover:border-purple-300 transition-colors"
+                className="w-full flex items-center justify-between bg-white border border-slate-200 p-2.5 rounded-2xl hover:border-purple-300 transition-all cursor-pointer shadow-xs"
               >
-                <div className="flex items-center space-x-2 overflow-hidden">
-                  {user.photoURL ? (
-                    <img src={user.photoURL} className="w-6 h-6 rounded-full" alt="profile" />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">
-                      {user.email?.[0].toUpperCase() || 'U'}
+                <div className="flex items-center space-x-2.5 overflow-hidden">
+                  <div className="relative shrink-0">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} className="w-7 h-7 rounded-full object-cover" alt="profile" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold">
+                        {user.email?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                    )}
+                    {user.providerData.some(p => p.providerId === 'github.com') && (
+                      <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-slate-900 rounded-full flex items-center justify-center border border-white">
+                        <Github className="w-2 h-2 text-white fill-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <div className="text-xs font-bold text-slate-800 truncate">{user.displayName || user.email}</div>
+                    <div className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>ซิงค์คลาวด์แล้ว</span>
                     </div>
-                  )}
-                  <span className="text-xs font-bold text-slate-700 truncate">{user.displayName || user.email}</span>
+                  </div>
                 </div>
               </button>
               {userMenuOpen && (
-                <div className="absolute bottom-full mb-2 w-full bg-white rounded-xl shadow-lg border border-slate-100 p-2 z-50">
+                <div className="absolute bottom-full mb-2 w-full bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-50 animate-fade-in">
+                   <div className="px-3 py-2 text-[11px] text-slate-500 border-b border-slate-100 mb-1 truncate">
+                     {user.email || user.displayName}
+                   </div>
                    <button
                      onClick={() => { logoutUser(); setUserMenuOpen(false); }}
-                     className="w-full flex items-center space-x-2 p-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                     className="w-full flex items-center space-x-2 p-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                    >
                      <LogOut className="w-4 h-4" />
                      <span>ออกจากระบบ</span>
@@ -162,13 +180,22 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
               )}
             </div>
           ) : (
-            <button
-              onClick={loginWithGoogle}
-              className="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white p-2 rounded-xl text-xs font-bold transition-colors shadow-sm"
-            >
-              <Cloud className="w-4 h-4" />
-              <span>Login / Sync</span>
-            </button>
+            <div className="space-y-1.5">
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full flex items-center justify-center space-x-2 bg-[#24292e] hover:bg-[#1b1f23] active:scale-98 text-white p-2.5 rounded-2xl text-xs font-black transition-all shadow-sm cursor-pointer"
+              >
+                <Github className="w-4 h-4 fill-white shrink-0" />
+                <span>เข้าสู่ระบบ GitHub</span>
+              </button>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full flex items-center justify-center space-x-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200/80 p-2 rounded-xl text-[11px] font-bold transition-colors cursor-pointer"
+              >
+                <Cloud className="w-3.5 h-3.5 text-purple-600" />
+                <span>หรือเข้าสู่ระบบ Google</span>
+              </button>
+            </div>
           )}
         </div>
       </aside>
@@ -182,7 +209,7 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
           </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-slate-600 bg-slate-50 rounded-xl"
+            className="p-2 text-slate-600 bg-slate-50 rounded-xl cursor-pointer"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -207,7 +234,7 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
                     <button
                       key={item.id}
                       onClick={() => handleTabClick(item.id)}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         isActive
                           ? 'bg-purple-600 text-white shadow-md'
                           : 'bg-white text-slate-600 border border-slate-200'
@@ -225,14 +252,55 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
                   setIsProjectorOpen(true);
                   setMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-black shadow-md shadow-amber-500/20"
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-black shadow-md shadow-amber-500/20 cursor-pointer"
               >
                 <Monitor className="w-4 h-4" />
                 <span>โหมดจอใหญ่ฉายห้อง 🖥️</span>
               </button>
+
+              {/* Mobile Auth button */}
+              <div className="pt-2 border-t border-slate-200">
+                {user ? (
+                  <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200">
+                    <div className="flex items-center space-x-2">
+                      {user.photoURL ? (
+                        <img src={user.photoURL} className="w-6 h-6 rounded-full" alt="profile" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">
+                          {user.email?.[0].toUpperCase() || 'U'}
+                        </div>
+                      )}
+                      <span className="text-xs font-bold text-slate-700">{user.displayName || user.email}</span>
+                    </div>
+                    <button
+                      onClick={() => { logoutUser(); setMobileMenuOpen(false); }}
+                      className="text-xs font-bold text-rose-600 px-2.5 py-1 bg-rose-50 rounded-lg hover:bg-rose-100 cursor-pointer"
+                    >
+                      ออก
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setIsAuthModalOpen(true);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center space-x-2 bg-[#24292e] text-white p-3 rounded-2xl text-xs font-bold shadow-md cursor-pointer"
+                  >
+                    <Github className="w-4 h-4 fill-white" />
+                    <span>เข้าสู่ระบบด้วย GitHub / Google</span>
+                  </button>
+                )}
+              </div>
           </div>
         )}
       </header>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </>
   );
 };

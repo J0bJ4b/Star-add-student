@@ -3,6 +3,7 @@ import {
   getAuth, 
   signInWithPopup, 
   GoogleAuthProvider, 
+  GithubAuthProvider,
   signOut, 
   signInAnonymously,
   onAuthStateChanged,
@@ -15,6 +16,9 @@ export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getA
 export const auth = getAuth(app);
 
 const googleProvider = new GoogleAuthProvider();
+const githubProvider = new GithubAuthProvider();
+githubProvider.addScope('read:user');
+githubProvider.addScope('user:email');
 
 export async function loginWithGoogle() {
   try {
@@ -26,6 +30,20 @@ export async function loginWithGoogle() {
       return null;
     }
     console.error('Google Sign-in failed:', error);
+    throw error;
+  }
+}
+
+export async function loginWithGithub() {
+  try {
+    const result = await signInWithPopup(auth, githubProvider);
+    return result.user;
+  } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      console.log('GitHub Sign-in popup closed by user.');
+      return null;
+    }
+    console.error('GitHub Sign-in failed:', error);
     throw error;
   }
 }

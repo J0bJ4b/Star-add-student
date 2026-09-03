@@ -10,7 +10,7 @@ import {
 import { sounds } from '../lib/audio';
 import { fireStarBurst, fireStarShower, fireBigCelebration } from '../lib/confetti';
 import { emitFloatingParticle } from '../components/FloatingParticles';
-import { auth, loginWithGoogle, loginAsGuest, logoutUser } from '../lib/firebase';
+import { auth, loginWithGoogle, loginWithGithub, loginAsGuest, logoutUser } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 interface StudentContextType {
@@ -31,6 +31,7 @@ interface StudentContextType {
   setSelectedCategory: (cat: string) => void;
   toggleSound: () => void;
   loginWithGoogle: () => Promise<User | void>;
+  loginWithGithub: () => Promise<User | void>;
   loginAsGuest: () => Promise<User | void>;
   logout: () => Promise<void>;
   
@@ -978,6 +979,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setSelectedCategory,
         toggleSound,
         loginWithGoogle,
+        loginWithGithub,
         loginAsGuest,
         logout: logoutUser,
         addStars,
