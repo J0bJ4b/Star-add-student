@@ -79,9 +79,9 @@ export const AddStarView: React.FC = () => {
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4">
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
               <div className="flex items-center space-x-2">
-                <button onClick={selectAll} className="flex items-center space-x-2 text-sm font-bold text-slate-600 hover:text-orange-600 transition-colors">
+                <button onClick={selectAll} className="flex items-center space-x-2 text-sm font-bold text-slate-600 hover:text-purple-600 transition-colors">
                   {selectedIds.length === filtered.length && filtered.length > 0 ? (
-                    <CheckSquare className="w-5 h-5 text-orange-500" />
+                    <CheckSquare className="w-5 h-5 text-amber-500" />
                   ) : (
                     <Square className="w-5 h-5" />
                   )}
@@ -89,7 +89,7 @@ export const AddStarView: React.FC = () => {
                 </button>
               </div>
               <div className="text-sm font-bold text-slate-500">
-                เลือกแล้ว <span className="text-orange-500">{selectedIds.length}</span> คน
+                เลือกแล้ว <span className="text-amber-500">{selectedIds.length}</span> คน
               </div>
             </div>
 
@@ -101,7 +101,7 @@ export const AddStarView: React.FC = () => {
                     key={student.id}
                     onClick={() => toggleSelect(student.id)}
                     className={`cursor-pointer rounded-2xl border-2 p-3 flex flex-col items-center text-center transition-all ${
-                      isSelected ? 'border-orange-500 bg-orange-50' : 'border-slate-100 bg-white hover:border-slate-300'
+                      isSelected ? 'border-purple-600 bg-purple-50' : 'border-slate-100 bg-white hover:border-slate-300'
                     }`}
                   >
                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-2 overflow-hidden shadow-inner ${
@@ -130,7 +130,7 @@ export const AddStarView: React.FC = () => {
         <div className="lg:col-span-1">
           <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 sticky top-6">
             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center space-x-2">
-              <Star className="w-5 h-5 text-orange-500 fill-orange-500" />
+              <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
               <span>กำหนดจำนวนดาว</span>
             </h3>
 
@@ -143,7 +143,7 @@ export const AddStarView: React.FC = () => {
                     type="number" 
                     value={amount}
                     onChange={e => setAmount(parseFloat(e.target.value) || 0)}
-                    className="flex-1 h-12 text-center text-2xl font-black text-orange-500 bg-orange-50 border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    className="flex-1 h-12 text-center text-2xl font-black text-amber-500 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400"
                   />
                   <button type="button" onClick={() => setAmount(a => a + 1)} className="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 font-bold text-xl hover:bg-slate-200 transition-colors">+</button>
                 </div>
@@ -155,14 +155,14 @@ export const AddStarView: React.FC = () => {
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   placeholder="เช่น ตั้งใจเรียน, ทำเวร..."
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 min-h-[100px]"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 min-h-[100px]"
                 ></textarea>
               </div>
 
               <button 
                 type="submit"
                 disabled={selectedIds.length === 0 || amount === 0}
-                className="w-full py-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black text-lg shadow-md shadow-orange-500/20 transition-all flex items-center justify-center space-x-2"
+                className="w-full py-4 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black text-lg shadow-md shadow-purple-600/20 transition-all flex items-center justify-center space-x-2"
               >
                 <span>มอบให้ {selectedIds.length} คน</span>
               </button>

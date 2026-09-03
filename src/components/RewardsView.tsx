@@ -25,8 +25,8 @@ export const RewardsView: React.FC = () => {
             <p className="text-xs text-slate-500 mb-4 h-8 overflow-hidden">{reward.description}</p>
             
             <div className="mt-auto w-full">
-              <div className="flex items-center justify-center space-x-1.5 bg-orange-50 py-2 rounded-xl text-orange-600 font-black border border-orange-100">
-                <Star className="w-4 h-4 fill-orange-500" />
+              <div className="flex items-center justify-center space-x-1.5 bg-amber-50 py-2 rounded-xl text-amber-600 font-black border border-amber-100">
+                <Star className="w-4 h-4 fill-amber-500" />
                 <span>ใช้ {reward.requiredStars} ดาว</span>
               </div>
             </div>

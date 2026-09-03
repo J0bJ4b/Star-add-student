@@ -70,7 +70,7 @@ export const LeaderboardView: React.FC = () => {
                     ) : rank === 2 ? (
                       <div className="w-10 h-10 mx-auto bg-slate-200 text-slate-600 rounded-full flex items-center justify-center font-black text-lg border border-slate-300">2</div>
                     ) : rank === 3 ? (
-                      <div className="w-10 h-10 mx-auto bg-orange-100 text-orange-700 rounded-full flex items-center justify-center font-black text-lg border border-orange-200">3</div>
+                      <div className="w-10 h-10 mx-auto bg-amber-100 text-amber-700 rounded-full flex items-center justify-center font-black text-lg border border-amber-200">3</div>
                     ) : (
                       <div className="w-10 h-10 mx-auto text-slate-400 flex items-center justify-center font-bold text-lg">{rank}</div>
                     )}
@@ -96,9 +96,9 @@ export const LeaderboardView: React.FC = () => {
                     </span>
                   </td>
                   <td className="p-4 text-right">
-                    <div className="inline-flex items-center space-x-2 bg-orange-50 px-4 py-2 rounded-xl border border-orange-100">
-                      <span className="font-black text-orange-500 text-lg">{student.stars}</span>
-                      <Award className="w-5 h-5 text-orange-500 fill-orange-500" />
+                    <div className="inline-flex items-center space-x-2 bg-amber-50 px-4 py-2 rounded-xl border border-amber-100">
+                      <span className="font-black text-amber-500 text-lg">{student.stars}</span>
+                      <Award className="w-5 h-5 text-amber-500 fill-amber-500" />
                     </div>
                   </td>
                 </tr>

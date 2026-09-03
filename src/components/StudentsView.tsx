@@ -26,7 +26,7 @@ export const StudentsView: React.FC = () => {
         </div>
         <button
           onClick={() => { setEditingStudent(null); setIsFormOpen(true); }}
-          className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold shadow-md shadow-orange-500/20 flex items-center space-x-2"
+          className="px-4 py-2 bg-purple-600 text-white rounded-xl font-bold shadow-md shadow-purple-600/20 flex items-center space-x-2"
         >
           <Plus className="w-5 h-5" />
           <span>เพิ่มนักเรียนใหม่</span>
@@ -88,7 +88,7 @@ export const StudentsView: React.FC = () => {
                       ป.{student.classroom}
                     </span>
                   </td>
-                  <td className="p-4 text-center font-black text-orange-500 text-lg">
+                  <td className="p-4 text-center font-black text-amber-500 text-lg">
                     {student.stars}
                   </td>
                   <td className="p-4 text-right">

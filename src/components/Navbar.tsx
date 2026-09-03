@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Home, Star, Users, Award, Gift, History, Menu, X, Cloud, LogOut, Database, RefreshCw, Volume2, VolumeX
+  Home, Star, Users, Award, Gift, History, Menu, X, Cloud, LogOut, Database, RefreshCw, Volume2, VolumeX, GraduationCap
 } from 'lucide-react';
 import { TabType } from '../types';
 import { useStudents } from '../context/StudentContext';
@@ -30,6 +30,7 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
     { id: 'dashboard', label: 'หน้าแรก', icon: <Home className="w-5 h-5" /> },
     { id: 'add-star', label: 'ให้ดาว', icon: <Star className="w-5 h-5" /> },
     { id: 'students', label: 'นักเรียน', icon: <Users className="w-5 h-5" /> },
+    { id: 'classrooms', label: 'ห้องเรียน', icon: <GraduationCap className="w-5 h-5" /> },
     { id: 'leaderboard', label: 'สรุปอันดับ', icon: <Award className="w-5 h-5" /> },
     { id: 'rewards', label: 'แลกรางวัล', icon: <Gift className="w-5 h-5" /> },
     { id: 'history', label: 'ประวัติ', icon: <History className="w-5 h-5" /> },
@@ -45,8 +46,8 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 fixed inset-y-0 left-0 z-40 shadow-sm">
         <div className="p-6">
-          <div className="flex items-center space-x-2 text-orange-500">
-            <Star className="w-8 h-8 fill-orange-500" />
+          <div className="flex items-center space-x-2 text-amber-500">
+            <Star className="w-8 h-8 fill-amber-500" />
             <span className="text-xl font-black font-heading tracking-wide">ดาวเด็กดี</span>
           </div>
           <p className="text-xs text-slate-500 mt-1 ml-1 font-medium">ระบบสะสมดาว & ความดี</p>
@@ -54,13 +55,21 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
 
         <div className="px-4 pb-4">
           <div className="mb-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">เลือกห้องเรียน</label>
+            <div className="flex items-center justify-between px-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">เลือกห้องเรียน</label>
+              <button
+                onClick={() => handleTabClick('classrooms')}
+                className="text-[10px] font-bold text-purple-600 hover:text-purple-700 hover:underline cursor-pointer"
+              >
+                จัดการห้อง
+              </button>
+            </div>
             <select
               value={activeClassroom}
               onChange={(e) => setActiveClassroom(e.target.value)}
-              className="mt-1 w-full text-sm font-semibold bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+              className="mt-1 w-full text-sm font-semibold bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent cursor-pointer"
             >
-              <option value="all">ทุกห้องเรียน</option>
+              <option value="all">ทุกห้องเรียน ({classrooms.length} ห้อง)</option>
               {classrooms.map((c) => (
                 <option key={c} value={c}>ห้อง {c}</option>
               ))}
@@ -78,8 +87,8 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
                 onClick={() => handleTabClick(item.id)}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
                   isActive
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                    : 'text-slate-600 hover:bg-orange-50 hover:text-orange-600'
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                    : 'text-slate-600 hover:bg-purple-50 hover:text-purple-600'
                 }`}
               >
                 {item.icon}
@@ -94,14 +103,14 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
             <button
               onClick={toggleSound}
               className={`p-2 rounded-xl transition-colors ${
-                soundEnabled ? 'bg-white text-orange-500 shadow-sm' : 'bg-slate-200 text-slate-500'
+                soundEnabled ? 'bg-white text-amber-500 shadow-sm' : 'bg-slate-200 text-slate-500'
               }`}
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
             <button
               onClick={onOpenBackup}
-              className="p-2 bg-white text-slate-600 rounded-xl shadow-sm hover:text-orange-600 transition-colors"
+              className="p-2 bg-white text-slate-600 rounded-xl shadow-sm hover:text-purple-600 transition-colors"
               title="สำรองข้อมูล"
             >
               <Database className="w-4 h-4" />
@@ -112,13 +121,13 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-full flex items-center justify-between bg-white border border-slate-200 p-2 rounded-xl hover:border-orange-300 transition-colors"
+                className="w-full flex items-center justify-between bg-white border border-slate-200 p-2 rounded-xl hover:border-purple-300 transition-colors"
               >
                 <div className="flex items-center space-x-2 overflow-hidden">
                   {user.photoURL ? (
                     <img src={user.photoURL} className="w-6 h-6 rounded-full" alt="profile" />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs">
+                    <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">
                       {user.email?.[0].toUpperCase() || 'U'}
                     </div>
                   )}
@@ -152,8 +161,8 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
       {/* Mobile Topbar */}
       <header className="lg:hidden bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-orange-500">
-            <Star className="w-6 h-6 fill-orange-500" />
+          <div className="flex items-center space-x-2 text-amber-500">
+            <Star className="w-6 h-6 fill-amber-500" />
             <span className="text-lg font-black font-heading">ดาวเด็กดี</span>
           </div>
           <button
@@ -185,7 +194,7 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
                       onClick={() => handleTabClick(item.id)}
                       className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                         isActive
-                          ? 'bg-orange-500 text-white shadow-md'
+                          ? 'bg-purple-600 text-white shadow-md'
                           : 'bg-white text-slate-600 border border-slate-200'
                       }`}
                     >

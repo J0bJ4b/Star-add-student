@@ -10,13 +10,14 @@ import { AddStarView } from './components/AddStarView';
 import { LeaderboardView } from './components/LeaderboardView';
 import { RewardsView } from './components/RewardsView';
 import { HistoryView } from './components/HistoryView';
+import { ClassroomsView } from './components/ClassroomsView';
 
 function MainAppContent() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [isBackupOpen, setIsBackupOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] text-slate-900 selection:bg-orange-200 selection:text-orange-900 flex flex-col">
+    <div className="min-h-screen bg-[#f8f9ff] text-slate-900 selection:bg-purple-200 selection:text-purple-900 flex flex-col">
       <Navbar
         currentTab={currentTab}
         onSelectTab={(tab) => setCurrentTab(tab)}
@@ -26,9 +27,15 @@ function MainAppContent() {
       <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
         <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7">
           {currentTab === 'dashboard' && (
-            <HomeView onOpenBackup={() => setIsBackupOpen(true)} />
+            <HomeView 
+              onOpenBackup={() => setIsBackupOpen(true)} 
+              onSelectTab={(tab) => setCurrentTab(tab)}
+            />
           )}
           {currentTab === 'students' && <StudentsView />}
+          {currentTab === 'classrooms' && (
+            <ClassroomsView onNavigateTab={(tab) => setCurrentTab(tab)} />
+          )}
           {currentTab === 'add-star' && <AddStarView />}
           {currentTab === 'leaderboard' && <LeaderboardView />}
           {currentTab === 'rewards' && <RewardsView />}

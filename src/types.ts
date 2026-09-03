@@ -48,4 +48,4 @@ export interface StarCategory {
   defaultAmount: number;
 }
 
-export type TabType = 'dashboard' | 'add-star' | 'students' | 'leaderboard' | 'rewards' | 'history';
+export type TabType = 'dashboard' | 'add-star' | 'students' | 'classrooms' | 'leaderboard' | 'rewards' | 'history';

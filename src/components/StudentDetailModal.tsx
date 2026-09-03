@@ -36,14 +36,14 @@ export const StudentDetailModal: React.FC<Props> = ({ student, onClose }) => {
       <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col relative animate-fade-in">
         
         {/* Header - Orange Background */}
-        <div className="bg-orange-500 p-6 flex items-center justify-between">
+        <div className="bg-purple-600 p-6 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-4xl shadow-inner overflow-hidden border-2 border-white/20">
               {student.avatar.length > 2 ? <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" /> : student.avatar}
             </div>
             <div className="text-white">
               <h2 className="text-2xl font-black font-heading">{student.name.split(' ')[0]}</h2>
-              <p className="text-sm font-medium text-orange-100">
+              <p className="text-sm font-medium text-purple-100">
                 {student.name} (ห้อง {student.classroom} | เลขที่ {student.id.slice(0, 3)})
               </p>
             </div>
@@ -72,30 +72,30 @@ export const StudentDetailModal: React.FC<Props> = ({ student, onClose }) => {
           </div>
 
           {/* Bulk Stars */}
-          <div className="bg-orange-50/50 rounded-2xl border border-orange-100 p-5 space-y-4">
-            <h3 className="text-sm font-bold text-orange-900 flex items-center space-x-2">
+          <div className="bg-purple-50/50 rounded-2xl border border-slate-200 p-5 space-y-4">
+            <h3 className="text-sm font-bold text-purple-900 flex items-center space-x-2">
               <span>เพิ่ม / ลด ทีละหลายๆ ดาว พร้อมระบุเหตุผล</span>
-              <Star className="w-4 h-4 text-orange-400 fill-orange-400" />
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
             </h3>
             
             <div className="flex space-x-3">
               <div className="w-24 shrink-0">
-                <label className="text-[10px] font-bold text-orange-800 mb-1 block">จำนวนดาว</label>
+                <label className="text-[10px] font-bold text-purple-800 mb-1 block">จำนวนดาว</label>
                 <input 
                   type="number" 
                   value={bulkAmount}
                   onChange={(e) => setBulkAmount(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-orange-200 rounded-xl text-sm font-bold text-center text-slate-800 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-sm font-bold text-center text-slate-800 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400"
                 />
               </div>
               <div className="flex-1">
-                <label className="text-[10px] font-bold text-orange-800 mb-1 block">เหตุผล / หมายเหตุ</label>
+                <label className="text-[10px] font-bold text-purple-800 mb-1 block">เหตุผล / หมายเหตุ</label>
                 <input 
                   type="text" 
                   placeholder="เช่น ชนะการประกวด, ช่วยงานโรงเรียน, ลืมการบ้าน..."
                   value={bulkReason}
                   onChange={(e) => setBulkReason(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-orange-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400"
                 />
               </div>
             </div>
@@ -105,7 +105,7 @@ export const StudentDetailModal: React.FC<Props> = ({ student, onClose }) => {
                 <Minus className="w-4 h-4" />
                 <span>หักดาวหลายดวง</span>
               </button>
-              <button onClick={handleBulkAdd} className="py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-orange-500/20 flex items-center justify-center space-x-1.5">
+              <button onClick={handleBulkAdd} className="py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-600/20 flex items-center justify-center space-x-1.5">
                 <Plus className="w-4 h-4" />
                 <span>มอบดาวหลายดวง</span>
               </button>
@@ -118,8 +118,8 @@ export const StudentDetailModal: React.FC<Props> = ({ student, onClose }) => {
               <h3 className="font-bold text-slate-800 flex items-center space-x-2">
                 <span>ประวัติรับดาว & การใช้สิทธิ์แลกรางวัล</span>
               </h3>
-              <div className="flex items-center space-x-1.5 text-orange-600 font-black text-xl font-heading">
-                <Star className="w-5 h-5 fill-orange-500" />
+              <div className="flex items-center space-x-1.5 text-purple-600 font-black text-xl font-heading">
+                <Star className="w-5 h-5 fill-amber-500" />
                 <span>{student.stars} ดวง</span>
               </div>
             </div>

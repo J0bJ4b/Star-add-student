@@ -109,7 +109,7 @@ export const StudentFormModal: React.FC<Props> = ({ student, onClose }) => {
           <div className="flex flex-col items-center">
             <label className="text-xs font-bold text-slate-500 mb-2">รูปประจำตัว (Avatar)</label>
             <div className="relative group">
-              <div className="w-24 h-24 rounded-3xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center text-5xl overflow-hidden group-hover:border-orange-400 transition-colors shadow-inner">
+              <div className="w-24 h-24 rounded-3xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center text-5xl overflow-hidden group-hover:border-purple-400 transition-colors shadow-inner">
                 {isCustomImage ? (
                   <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -123,7 +123,7 @@ export const StudentFormModal: React.FC<Props> = ({ student, onClose }) => {
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-2 -right-2 w-8 h-8 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center border-2 border-white shadow-md transition-colors"
+                className="absolute -bottom-2 -right-2 w-8 h-8 bg-purple-600 hover:bg-purple-700 text-white rounded-full flex items-center justify-center border-2 border-white shadow-md transition-colors"
                 title="อัปโหลดรูปภาพ"
               >
                 <Upload className="w-4 h-4" />
@@ -146,7 +146,7 @@ export const StudentFormModal: React.FC<Props> = ({ student, onClose }) => {
                     key={emoji}
                     onClick={() => setAvatar(emoji)}
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-transform hover:scale-110 ${
-                      avatar === emoji ? 'bg-orange-100 border border-orange-300' : 'bg-slate-50 border border-slate-100'
+                      avatar === emoji ? 'bg-purple-100 border border-purple-300' : 'bg-slate-50 border border-slate-100'
                     }`}
                   >
                     {emoji}
@@ -164,7 +164,7 @@ export const StudentFormModal: React.FC<Props> = ({ student, onClose }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="เช่น ด.ช. มาวิน"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white transition-all"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all"
                 autoFocus
               />
             </div>
@@ -175,7 +175,7 @@ export const StudentFormModal: React.FC<Props> = ({ student, onClose }) => {
                 <select 
                   value={classroom}
                   onChange={(e) => setClassroom(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white transition-all"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all"
                 >
                   {classrooms.map(c => (
                     <option key={c} value={c}>ห้อง {c}</option>
@@ -190,7 +190,7 @@ export const StudentFormModal: React.FC<Props> = ({ student, onClose }) => {
                     type="number" 
                     value={initialStars}
                     onChange={(e) => setInitialStars(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400 focus:bg-white transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all"
                   />
                 </div>
               )}
@@ -210,7 +210,7 @@ export const StudentFormModal: React.FC<Props> = ({ student, onClose }) => {
           <button 
             onClick={handleSave}
             disabled={!name.trim() || isProcessing}
-            className="flex-[2] py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-orange-500/20 transition-all flex items-center justify-center"
+            className="flex-[2] py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-purple-600/20 transition-all flex items-center justify-center"
           >
             {isProcessing ? 'กำลังประมวลผล...' : 'บันทึกข้อมูล'}
           </button>

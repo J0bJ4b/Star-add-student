@@ -45,6 +45,7 @@ interface StudentContextType {
   
   addClassroom: (name: string) => boolean;
   deleteClassroom: (name: string) => void;
+  renameClassroom: (oldName: string, newName: string) => boolean;
   
   addReward: (reward: Omit<Reward, 'id'>) => void;
   editReward: (id: string, updates: Partial<Reward>) => void;
@@ -443,6 +444,22 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     sounds.playClick();
   };
 
+  const renameClassroom = (oldName: string, newName: string): boolean => {
+    const cleanOld = oldName.trim();
+    const cleanNew = newName.trim();
+    if (!cleanNew || (cleanOld !== cleanNew && classrooms.includes(cleanNew))) return false;
+
+    setClassrooms((prev) => prev.map((c) => (c === cleanOld ? cleanNew : c)));
+    setStudents((prev) =>
+      prev.map((s) => (s.classroom === cleanOld ? { ...s, classroom: cleanNew } : s))
+    );
+    if (activeClassroom === cleanOld) {
+      setActiveClassroom(cleanNew);
+    }
+    sounds.playClick();
+    return true;
+  };
+
   // Reward Management
   const addReward = (rewardData: Omit<Reward, 'id'>) => {
     const newReward: Reward = {
@@ -678,6 +695,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteStudent,
         addClassroom,
         deleteClassroom,
+        renameClassroom,
         addReward,
         editReward,
         deleteReward,

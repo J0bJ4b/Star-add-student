@@ -3,16 +3,17 @@ import {
   Star, Search, Edit3, Trash2, Plus, Minus, Users, Gift, Moon, Sun, Volume2, VolumeX, Award
 } from 'lucide-react';
 import { useStudents } from '../context/StudentContext';
-import { Student } from '../types';
+import { Student, TabType } from '../types';
 import { StudentDetailModal } from './StudentDetailModal';
 
 import { StudentFormModal } from './StudentFormModal';
 
 interface Props {
   onOpenBackup: () => void;
+  onSelectTab?: (tab: TabType) => void;
 }
 
-export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
+export const HomeView: React.FC<Props> = ({ onOpenBackup, onSelectTab }) => {
   const { students, classrooms, addStars, editStudent, deleteStudent } = useStudents();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,7 +55,7 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
       {/* 1. Header Navbar */}
       <header className="bg-white rounded-3xl p-4 flex flex-col md:flex-row items-center justify-between border border-slate-100 shadow-sm gap-4">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center shadow-lg shadow-orange-500/30">
+          <div className="w-12 h-12 bg-amber-400 rounded-full flex items-center justify-center shadow-lg shadow-amber-400/30">
             <Star className="w-6 h-6 text-white fill-white" />
           </div>
           <div>
@@ -62,16 +63,22 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
               <span>ดาวเด็กดี</span>
               <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
             </h1>
-            <p className="text-xs font-bold text-orange-600">ระบบความดี & สิทธิพิเศษ</p>
+            <p className="text-xs font-bold text-purple-600">ระบบความดี & สิทธิพิเศษ</p>
           </div>
         </div>
         
         <div className="flex items-center flex-wrap gap-2 justify-center">
-          <button className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-sm font-bold flex items-center space-x-2 transition-colors">
+          <button 
+            onClick={() => onSelectTab && onSelectTab('rewards')}
+            className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-sm font-bold flex items-center space-x-2 transition-colors cursor-pointer"
+          >
             <Gift className="w-4 h-4" />
             <span>จัดการร้านสิทธิ์</span>
           </button>
-          <button className="px-4 py-2 bg-orange-50 text-orange-700 hover:bg-orange-100 rounded-xl text-sm font-bold flex items-center space-x-2 transition-colors">
+          <button 
+            onClick={() => onSelectTab && onSelectTab('classrooms')}
+            className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-sm font-bold flex items-center space-x-2 transition-colors cursor-pointer"
+          >
             <Users className="w-4 h-4" />
             <span>จัดการห้องเรียน</span>
           </button>
@@ -80,14 +87,14 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
               setEditingStudent(null);
               setIsFormModalOpen(true);
             }}
-            className="px-4 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-xl text-sm font-bold shadow-md shadow-orange-500/20 flex items-center space-x-2 transition-colors">
+            className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-xl text-sm font-bold shadow-md shadow-purple-600/20 flex items-center space-x-2 transition-colors">
             <Plus className="w-4 h-4" />
             <span>เพิ่มนักเรียน</span>
           </button>
           
           <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block"></div>
           
-          <button onClick={() => setIsSoundOn(!isSoundOn)} className="w-10 h-10 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center transition-colors">
+          <button onClick={() => setIsSoundOn(!isSoundOn)} className="w-10 h-10 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center transition-colors">
             {isSoundOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>
           <button onClick={() => setIsDarkTheme(!isDarkTheme)} className="px-3 h-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl flex items-center space-x-1.5 transition-colors text-xs font-bold">
@@ -102,7 +109,7 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
         <div className="flex items-center overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 gap-2 no-scrollbar">
           <button 
             onClick={() => setSelectedClass('all')}
-            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedClass === 'all' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedClass === 'all' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
             ทุกห้องเรียน ({students.length})
           </button>
@@ -112,7 +119,7 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
               <button 
                 key={c}
                 onClick={() => setSelectedClass(c)}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedClass === c ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedClass === c ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 ห้อง {c} ({count})
               </button>
@@ -132,7 +139,7 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
               placeholder="ค้นหาชื่อหรือเลขที่..." 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
           </div>
         </div>
@@ -140,8 +147,8 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
 
       {/* 3. Leaderboard Top 3 */}
       {top3.length >= 3 && (
-        <div className="bg-orange-50/50 rounded-[2.5rem] p-8 border border-orange-200/60 relative overflow-hidden flex flex-col items-center">
-          <div className="absolute top-4 bg-white px-6 py-1.5 rounded-full border border-orange-200 text-orange-700 font-bold text-sm flex items-center space-x-2 shadow-sm">
+        <div className="bg-purple-50/50 rounded-[2.5rem] p-8 border border-purple-200/60 relative overflow-hidden flex flex-col items-center">
+          <div className="absolute top-4 bg-white px-6 py-1.5 rounded-full border border-purple-200 text-purple-700 font-bold text-sm flex items-center space-x-2 shadow-sm">
             <Award className="w-4 h-4" />
             <span>อันดับดาวสะสมสูงสุด (ภาพรวมทั้งหมด)</span>
           </div>
@@ -160,8 +167,8 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
                 <div className="font-black font-heading text-slate-800 text-sm sm:text-base">{top3[1].name.split(' ')[0]}</div>
                 <div className="text-[10px] text-slate-500 truncate w-full">{top3[1].name}</div>
               </div>
-              <div className="mt-2 flex items-center space-x-1 text-orange-600 font-bold text-sm bg-white px-3 py-1 rounded-full border border-orange-100">
-                <Star className="w-3.5 h-3.5 fill-orange-500" />
+              <div className="mt-2 flex items-center space-x-1 text-purple-600 font-bold text-sm bg-white px-3 py-1 rounded-full border border-slate-200">
+                <Star className="w-3.5 h-3.5 fill-amber-500" />
                 <span>{top3[1].stars} ดาว</span>
               </div>
             </div>
@@ -171,7 +178,7 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
               <div className="absolute -top-4 bg-amber-500 text-white px-4 py-1 rounded-full text-xs font-black border-2 border-white shadow-md flex items-center space-x-1">
                 <span>🏆 อันดับ 1</span>
               </div>
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-orange-50 flex items-center justify-center text-5xl shadow-inner overflow-hidden mt-3">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-purple-50 flex items-center justify-center text-5xl shadow-inner overflow-hidden mt-3">
                 {top3[0].avatar.length > 2 ? <img src={top3[0].avatar} className="w-full h-full object-cover" /> : top3[0].avatar}
               </div>
               <div className="mt-4 text-center">
@@ -185,8 +192,8 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
             </div>
 
             {/* Rank 3 */}
-            <div className="flex flex-col items-center bg-orange-100/50 rounded-3xl p-4 w-32 sm:w-40 border border-orange-200 relative shadow-sm">
-              <div className="absolute -top-3 bg-orange-700 text-white px-3 py-0.5 rounded-full text-[10px] font-black border-2 border-white shadow-sm flex items-center space-x-1">
+            <div className="flex flex-col items-center bg-amber-100/50 rounded-3xl p-4 w-32 sm:w-40 border border-purple-200 relative shadow-sm">
+              <div className="absolute -top-3 bg-amber-700 text-white px-3 py-0.5 rounded-full text-[10px] font-black border-2 border-white shadow-sm flex items-center space-x-1">
                 <span>🥉 อันดับ 3</span>
               </div>
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white flex items-center justify-center text-4xl shadow-inner overflow-hidden mt-2">
@@ -196,8 +203,8 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
                 <div className="font-black font-heading text-slate-800 text-sm sm:text-base">{top3[2].name.split(' ')[0]}</div>
                 <div className="text-[10px] text-slate-500 truncate w-full">{top3[2].name}</div>
               </div>
-              <div className="mt-2 flex items-center space-x-1 text-orange-600 font-bold text-sm bg-white px-3 py-1 rounded-full border border-orange-100">
-                <Star className="w-3.5 h-3.5 fill-orange-500" />
+              <div className="mt-2 flex items-center space-x-1 text-purple-600 font-bold text-sm bg-white px-3 py-1 rounded-full border border-slate-200">
+                <Star className="w-3.5 h-3.5 fill-amber-500" />
                 <span>{top3[2].stars} ดาว</span>
               </div>
             </div>
@@ -210,11 +217,11 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
       <div>
         <div className="flex flex-col sm:flex-row items-center justify-between mb-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm gap-3">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-purple-600 flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-bold text-slate-800 text-sm">รายชื่อนักเรียนทุกห้อง <span className="text-orange-500">{filteredStudents.length} คน</span></h2>
+              <h2 className="font-bold text-slate-800 text-sm">รายชื่อนักเรียนทุกห้อง <span className="text-amber-500">{filteredStudents.length} คน</span></h2>
               <p className="text-[10px] text-slate-400">คลิกปุ่มเพื่อเลือกและสลับทิศทางการเรียงลำดับ</p>
             </div>
           </div>
@@ -222,14 +229,14 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
             <span className="text-xs font-bold text-slate-500">⬇ เรียงลำดับ:</span>
             <button 
               onClick={() => setSortMethod('stars')}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition-colors flex-1 sm:flex-none justify-center ${sortMethod === 'stars' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition-colors flex-1 sm:flex-none justify-center ${sortMethod === 'stars' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >
               <Star className={`w-3.5 h-3.5 ${sortMethod === 'stars' ? 'fill-white' : ''}`} />
               <span>1. เรียงตามดาว ⬇</span>
             </button>
             <button 
               onClick={() => setSortMethod('id')}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition-colors flex-1 sm:flex-none justify-center ${sortMethod === 'id' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1.5 transition-colors flex-1 sm:flex-none justify-center ${sortMethod === 'id' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >
               <Users className="w-3.5 h-3.5" />
               <span>2. เรียงตามเลขที่ ⬇</span>
@@ -256,7 +263,7 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
                         setEditingStudent(student);
                         setIsFormModalOpen(true);
                       }}
-                      className="absolute -bottom-1 -right-1 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center border-2 border-white transition-colors">
+                      className="absolute -bottom-1 -right-1 w-6 h-6 bg-purple-600 hover:bg-purple-700 text-white rounded-full flex items-center justify-center border-2 border-white transition-colors">
                       <Edit3 className="w-3 h-3" />
                     </button>
                   </div>
@@ -298,7 +305,7 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
                        <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
                          rank === 1 ? 'bg-amber-100 text-amber-700 border-amber-200' :
                          rank === 2 ? 'bg-slate-100 text-slate-600 border-slate-200' :
-                         'bg-orange-100 text-orange-700 border-orange-200'
+                         'bg-amber-100 text-purple-700 border-purple-200'
                        }`}>
                          🏆 อันดับ {rank}
                        </div>
@@ -310,11 +317,11 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
 
                 {/* Stars Display */}
                 <div className="my-4 flex items-center justify-between border-t border-b border-slate-50 py-2">
-                  <div className="flex items-center space-x-1.5 text-orange-500">
-                    <Star className="w-4 h-4 fill-orange-500" />
+                  <div className="flex items-center space-x-1.5 text-amber-500">
+                    <Star className="w-4 h-4 fill-amber-500" />
                     <span className="text-xs font-bold">ดาวสะสม</span>
                   </div>
-                  <div className="text-3xl font-black font-heading text-orange-500">
+                  <div className="text-3xl font-black font-heading text-amber-500">
                     {student.stars}
                   </div>
                 </div>
@@ -334,7 +341,7 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup }) => {
                       const posY = (rect.top + rect.height / 2) / window.innerHeight;
                       addStars(student.id, 1, undefined, undefined, posX, posY);
                     }}
-                    className="flex-[2] py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black shadow-md shadow-orange-500/20 transition-all active:scale-95 flex items-center justify-center space-x-1"
+                    className="flex-[2] py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-md shadow-purple-600/20 transition-all active:scale-95 flex items-center justify-center space-x-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>1 ดาว</span>
