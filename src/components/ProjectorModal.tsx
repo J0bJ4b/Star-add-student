@@ -346,14 +346,25 @@ export const ProjectorModal: React.FC = () => {
                 <div className="mt-6 flex items-center justify-center space-x-2">
                   <button
                     onClick={() => {
-                      addStars(pickerWinner.id, 1, 'ตอบคำถามถูก', 'กิจกรรมสุ่มบนจอ');
-                      sounds.playStarEarned();
+                      addStars(pickerWinner.id, 0.5, 'ตอบคำถามถูก', 'กิจกรรมสุ่มบนจอ');
+                      sounds.playStarEarned(true);
                       setShowPicker(false);
                     }}
-                    className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center space-x-1"
+                    className="px-4 py-2.5 bg-amber-300 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center space-x-1 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Star className="w-4 h-4 fill-amber-600 text-amber-700" />
+                    <span>ให้ +0.5 ดาว</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      addStars(pickerWinner.id, 1, 'ตอบคำถามถูก', 'กิจกรรมสุ่มบนจอ');
+                      sounds.playStarEarned(false);
+                      setShowPicker(false);
+                    }}
+                    className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center space-x-1 cursor-pointer transition-all active:scale-95"
                   >
                     <Star className="w-4 h-4 fill-slate-950" />
-                    <span>ให้ +1 ดาวทันที</span>
+                    <span>ให้ +1 ดาว</span>
                   </button>
                 </div>
               </div>

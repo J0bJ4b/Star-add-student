@@ -396,12 +396,26 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup, onSelectTab }) => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex space-x-2">
+                <div className="flex items-center gap-1.5">
                   <button 
                     onClick={() => addStars(student.id, -1, 'หักดาว')}
-                    className="flex-1 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-all active:scale-95 flex items-center justify-center"
+                    title="หัก 1 ดาว"
+                    className="w-9 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-500 text-xs font-bold transition-all active:scale-95 flex items-center justify-center shrink-0"
                   >
-                    – 1 ดาว
+                    –1
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const posX = (rect.left + rect.width / 2) / window.innerWidth;
+                      const posY = (rect.top + rect.height / 2) / window.innerHeight;
+                      addStars(student.id, 0.5, 'ความดีทั่วไป', undefined, posX, posY);
+                    }}
+                    title="เพิ่มครึ่งดาว (+0.5 ดาว)"
+                    className="flex-1 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-black transition-all active:scale-95 flex items-center justify-center space-x-1 shadow-xs cursor-pointer"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                    <span>+0.5</span>
                   </button>
                   <button 
                     onClick={(e) => {
@@ -410,7 +424,8 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup, onSelectTab }) => {
                       const posY = (rect.top + rect.height / 2) / window.innerHeight;
                       addStars(student.id, 1, undefined, undefined, posX, posY);
                     }}
-                    className="flex-[2] py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-md shadow-purple-600/20 transition-all active:scale-95 flex items-center justify-center space-x-1"
+                    title="เพิ่ม 1 ดาว (+1 ดาว)"
+                    className="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-md shadow-purple-600/20 transition-all active:scale-95 flex items-center justify-center space-x-1 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>1 ดาว</span>

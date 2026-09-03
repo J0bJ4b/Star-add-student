@@ -374,15 +374,15 @@ export const ActivitiesView: React.FC = () => {
                     <label className="text-xs font-bold text-slate-600 mb-2 block">
                       กดมอบดาวทันที:
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[1, 2, 3].map((amt) => (
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[0.5, 1, 2, 3].map((amt) => (
                         <button
                           key={amt}
                           onClick={() => handleAwardWinner(amt)}
-                          className="py-2.5 px-3 bg-amber-400 hover:bg-amber-500 text-slate-900 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center justify-center space-x-1 cursor-pointer"
+                          className="py-2.5 px-2 bg-amber-400 hover:bg-amber-500 text-slate-900 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center justify-center space-x-1 cursor-pointer"
                         >
                           <Star className="w-3.5 h-3.5 fill-slate-900" />
-                          <span>+{amt} ดาว</span>
+                          <span>+{amt}</span>
                         </button>
                       ))}
                     </div>

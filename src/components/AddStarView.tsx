@@ -138,14 +138,46 @@ export const AddStarView: React.FC = () => {
               <div>
                 <label className="text-xs font-bold text-slate-500 block mb-2">จำนวนดาวที่ต้องการให้</label>
                 <div className="flex items-center space-x-3">
-                  <button type="button" onClick={() => setAmount(a => a - 1)} className="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 font-bold text-xl hover:bg-slate-200 transition-colors">-</button>
+                  <button 
+                    type="button" 
+                    onClick={() => setAmount(a => Math.max(0.5, Number((a - 0.5).toFixed(1))))} 
+                    className="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 font-bold text-xl hover:bg-slate-200 transition-colors cursor-pointer"
+                  >
+                    -
+                  </button>
                   <input 
                     type="number" 
+                    step="0.5"
+                    min="0.5"
                     value={amount}
                     onChange={e => setAmount(parseFloat(e.target.value) || 0)}
                     className="flex-1 h-12 text-center text-2xl font-black text-amber-500 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400"
                   />
-                  <button type="button" onClick={() => setAmount(a => a + 1)} className="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 font-bold text-xl hover:bg-slate-200 transition-colors">+</button>
+                  <button 
+                    type="button" 
+                    onClick={() => setAmount(a => Number((a + 0.5).toFixed(1)))} 
+                    className="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 font-bold text-xl hover:bg-slate-200 transition-colors cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Quick amount presets */}
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {[0.5, 1, 2, 3, 5].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setAmount(val)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        amount === val
+                          ? 'bg-amber-400 text-slate-950 font-black shadow-xs ring-2 ring-amber-300'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {val === 0.5 ? '⭐ +0.5 ดาว' : `+${val} ดาว`}
+                    </button>
+                  ))}
                 </div>
               </div>
 

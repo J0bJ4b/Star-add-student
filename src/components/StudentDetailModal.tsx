@@ -77,12 +77,35 @@ export const StudentDetailModal: React.FC<Props> = ({ student, onClose }) => {
               <span>เพิ่ม / ลด ทีละหลายๆ ดาว พร้อมระบุเหตุผล</span>
               <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
             </h3>
+
+            {/* Quick Star Buttons */}
+            <div>
+              <label className="text-[10px] font-bold text-purple-800 mb-1.5 block">ปุ่มลัดเลือกจำนวนดาว:</label>
+              <div className="flex flex-wrap gap-1.5">
+                {[0.5, 1, 2, 3, 5].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setBulkAmount(val.toString())}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      parseFloat(bulkAmount) === val
+                        ? 'bg-amber-400 text-slate-900 shadow-xs ring-2 ring-amber-300'
+                        : 'bg-white border border-purple-200 text-purple-800 hover:bg-purple-100'
+                    }`}
+                  >
+                    {val === 0.5 ? '⭐ +0.5 ดาว' : `+${val} ดาว`}
+                  </button>
+                ))}
+              </div>
+            </div>
             
             <div className="flex space-x-3">
-              <div className="w-24 shrink-0">
+              <div className="w-28 shrink-0">
                 <label className="text-[10px] font-bold text-purple-800 mb-1 block">จำนวนดาว</label>
                 <input 
                   type="number" 
+                  step="0.5"
+                  min="0.5"
                   value={bulkAmount}
                   onChange={(e) => setBulkAmount(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-sm font-bold text-center text-slate-800 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400"
@@ -101,13 +124,13 @@ export const StudentDetailModal: React.FC<Props> = ({ student, onClose }) => {
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-1">
-              <button onClick={handleBulkDeduct} className="py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5">
+              <button onClick={handleBulkDeduct} className="py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
                 <Minus className="w-4 h-4" />
-                <span>หักดาวหลายดวง</span>
+                <span>หัก {bulkAmount || 0} ดาว</span>
               </button>
-              <button onClick={handleBulkAdd} className="py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-600/20 flex items-center justify-center space-x-1.5">
+              <button onClick={handleBulkAdd} className="py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-600/20 flex items-center justify-center space-x-1.5 cursor-pointer">
                 <Plus className="w-4 h-4" />
-                <span>มอบดาวหลายดวง</span>
+                <span>มอบ {bulkAmount || 0} ดาว</span>
               </button>
             </div>
           </div>

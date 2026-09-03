@@ -78,6 +78,8 @@ interface StudentContextType {
   resetToSampleData: () => void;
   exportBackupJSON: () => void;
   importBackupJSON: (jsonString: string) => { success: boolean; message: string };
+  exportBackupCode: () => string;
+  importBackupCode: (codeString: string) => { success: boolean; message: string };
   
   getAllStarLogs: () => StarLog[];
 }
@@ -855,6 +857,92 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  // Export as Code string (Base64 encoded JSON for easy copy-pasting)
+  const exportBackupCode = (): string => {
+    const backupData = {
+      version: '2.0',
+      exportedAt: new Date().toISOString(),
+      students,
+      classrooms,
+      rewards,
+      categories,
+      attendance,
+    };
+    try {
+      const jsonStr = JSON.stringify(backupData);
+      // UTF-8 safe base64 encoding
+      const utf8Bytes = new TextEncoder().encode(jsonStr);
+      let binaryStr = '';
+      for (let i = 0; i < utf8Bytes.length; i++) {
+        binaryStr += String.fromCharCode(utf8Bytes[i]);
+      }
+      const base64 = btoa(binaryStr);
+      return `STAR-${base64}`;
+    } catch (e) {
+      return JSON.stringify(backupData);
+    }
+  };
+
+  // Import from Code string (Base64 or raw JSON)
+  const importBackupCode = (codeString: string): { success: boolean; message: string } => {
+    const trimmed = codeString.trim();
+    if (!trimmed) {
+      return { success: false, message: 'กรุณากรอกหรือวางรหัสโค้ดข้อมูล' };
+    }
+
+    try {
+      let jsonString = '';
+      if (trimmed.startsWith('STAR-')) {
+        const base64Part = trimmed.slice(5);
+        const binaryStr = atob(base64Part);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        jsonString = new TextDecoder().decode(bytes);
+      } else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        jsonString = trimmed;
+      } else {
+        // Try decoding raw base64
+        try {
+          const binaryStr = atob(trimmed);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          jsonString = new TextDecoder().decode(bytes);
+        } catch {
+          jsonString = trimmed;
+        }
+      }
+
+      const data = JSON.parse(jsonString);
+      if (!data.students || !Array.isArray(data.students)) {
+        return { success: false, message: 'รหัสโค้ดไม่ถูกต้อง หรือรูปแบบข้อมูลไม่สมบูรณ์ (ไม่พบข้อมูลนักเรียน)' };
+      }
+
+      setStudents(data.students);
+      if (data.classrooms && Array.isArray(data.classrooms)) {
+        setClassrooms(data.classrooms);
+      }
+      if (data.rewards && Array.isArray(data.rewards)) {
+        setRewards(data.rewards);
+      }
+      if (data.categories && Array.isArray(data.categories)) {
+        setCategories(data.categories);
+      }
+      if (data.attendance && Array.isArray(data.attendance)) {
+        setAttendance(data.attendance);
+      }
+
+      sounds.playRewardFanfare();
+      fireStarBurst();
+      return { success: true, message: `โหลดข้อมูลสำเร็จ! นักเรียน ${data.students.length} คน` };
+    } catch (e: any) {
+      return { success: false, message: `รหัสโค้ดไม่ถูกต้อง กรุณาตรวจสอบโค้ดอีกครั้ง (${e.message})` };
+    }
+  };
+
   // Get aggregated history logs sorted by timestamp descending
   const getAllStarLogs = (): StarLog[] => {
     const allLogs: StarLog[] = [];
@@ -924,6 +1012,8 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         resetToSampleData,
         exportBackupJSON,
         importBackupJSON,
+        exportBackupCode,
+        importBackupCode,
         getAllStarLogs,
       }}
     >

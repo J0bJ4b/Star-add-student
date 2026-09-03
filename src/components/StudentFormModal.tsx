@@ -188,6 +188,8 @@ export const StudentFormModal: React.FC<Props> = ({ student, onClose }) => {
                   <label className="text-xs font-bold text-slate-700 mb-1.5 block">ดาวเริ่มต้น</label>
                   <input 
                     type="number" 
+                    step="0.5"
+                    min="0"
                     value={initialStars}
                     onChange={(e) => setInitialStars(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all"
