@@ -7,7 +7,7 @@ export function fireStarBurst(originX = 0.5, originY = 0.5) {
     spread: 90,
     origin: { x: originX, y: originY },
     colors: ['#FBBF24', '#F59E0B', '#FDE047', '#9333EA', '#EC4899', '#38BDF8'],
-    shapes: ['star', 'circle'],
+    shapes: ['star', 'circle'] as confetti.Shape[],
     scalar: 1.2,
     ticks: 150,
     gravity: 0.8,
@@ -33,7 +33,7 @@ export function fireStarShower() {
     confetti(Object.assign({}, defaults, { 
       particleCount, 
       origin: { x: Math.random(), y: Math.random() - 0.2 }, 
-      shapes: ['star'], 
+      shapes: ['star'] as confetti.Shape[], 
       colors: ['#FBBF24', '#F59E0B', '#FDE047'] 
     }));
   }, 250);

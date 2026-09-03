@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  Home, Star, Users, Award, Gift, History, Menu, X, Cloud, LogOut, Database, RefreshCw, Volume2, VolumeX, GraduationCap
+  Home, Star, Users, Award, Gift, History, Menu, X, Cloud, LogOut, Database, RefreshCw, Volume2, VolumeX, GraduationCap,
+  Sparkles, CheckCircle2, BookmarkCheck, FileText, Monitor
 } from 'lucide-react';
 import { TabType } from '../types';
 import { useStudents } from '../context/StudentContext';
@@ -16,7 +17,7 @@ interface Props {
 export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { activeClassroom, setActiveClassroom, classrooms, user } = useStudents();
+  const { activeClassroom, setActiveClassroom, classrooms, user, setIsProjectorOpen } = useStudents();
   
   // Assuming audio toggle is in a global state or just use a local one for UI
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -29,10 +30,14 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
   const navItems: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'หน้าแรก', icon: <Home className="w-5 h-5" /> },
     { id: 'add-star', label: 'ให้ดาว', icon: <Star className="w-5 h-5" /> },
+    { id: 'activities', label: 'กิจกรรม / สุ่มชื่อ', icon: <Sparkles className="w-5 h-5" /> },
+    { id: 'attendance', label: 'เช็คชื่อมาเรียน', icon: <CheckCircle2 className="w-5 h-5" /> },
     { id: 'students', label: 'นักเรียน', icon: <Users className="w-5 h-5" /> },
     { id: 'classrooms', label: 'ห้องเรียน', icon: <GraduationCap className="w-5 h-5" /> },
     { id: 'leaderboard', label: 'สรุปอันดับ', icon: <Award className="w-5 h-5" /> },
     { id: 'rewards', label: 'แลกรางวัล', icon: <Gift className="w-5 h-5" /> },
+    { id: 'badges', label: 'เกณฑ์ความดี', icon: <BookmarkCheck className="w-5 h-5" /> },
+    { id: 'reports', label: 'รายงาน & พิมพ์', icon: <FileText className="w-5 h-5" /> },
     { id: 'history', label: 'ประวัติ', icon: <History className="w-5 h-5" /> },
   ];
 
@@ -97,6 +102,16 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
             );
           })}
         </nav>
+
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setIsProjectorOpen(true)}
+            className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-black shadow-md shadow-amber-500/20 transition-all cursor-pointer active:scale-98"
+          >
+            <Monitor className="w-4 h-4" />
+            <span>โหมดจอใหญ่ฉายห้อง 🖥️</span>
+          </button>
+        </div>
 
         <div className="p-4 border-t border-slate-100 bg-slate-50">
           <div className="flex items-center justify-between mb-4">
@@ -204,6 +219,17 @@ export const Navbar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenBackup 
                   );
                 })}
               </div>
+
+              <button
+                onClick={() => {
+                  setIsProjectorOpen(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-black shadow-md shadow-amber-500/20"
+              >
+                <Monitor className="w-4 h-4" />
+                <span>โหมดจอใหญ่ฉายห้อง 🖥️</span>
+              </button>
           </div>
         )}
       </header>

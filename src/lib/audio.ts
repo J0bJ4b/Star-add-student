@@ -111,6 +111,15 @@ class SoundEffects {
     } catch (e) {}
   }
 
+  playStarEarned(isHalf = false) {
+    this.playStarChime(isHalf);
+  }
+
+  toggleMute(): boolean {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+
   playClick() {
     if (!this.enabled) return;
     try {

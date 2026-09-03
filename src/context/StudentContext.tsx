@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Student, Reward, StarLog, StarCategory } from '../types';
+import { Student, Reward, StarLog, StarCategory, AttendanceRecord, AttendanceStatus, StudentTeam } from '../types';
 import { 
   DEFAULT_STUDENTS, 
   DEFAULT_REWARDS, 
@@ -52,6 +52,28 @@ interface StudentContextType {
   deleteReward: (id: string) => void;
   claimReward: (studentId: string, rewardId: string) => { success: boolean; message: string };
   
+  // Category management
+  addCategory: (cat: Omit<StarCategory, 'id'>) => void;
+  editCategory: (id: string, updates: Partial<StarCategory>) => void;
+  deleteCategory: (id: string) => void;
+
+  // Attendance management
+  attendance: AttendanceRecord[];
+  markAttendance: (studentId: string, date: string, status: AttendanceStatus, note?: string) => void;
+  batchMarkAttendance: (records: { studentId: string; status: AttendanceStatus }[], date: string) => void;
+  rewardPresentStudents: (date: string, amount: number, note: string) => number;
+
+  // Teams management
+  teams: StudentTeam[];
+  createTeam: (name: string, color: string, bgLight: string, studentIds?: string[]) => void;
+  deleteTeam: (teamId: string) => void;
+  autoSplitTeams: (numTeams: number, classroom: string) => void;
+  addStarsToTeam: (teamId: string, amount: number, note: string) => void;
+
+  // Projector / Big Screen Mode
+  isProjectorOpen: boolean;
+  setIsProjectorOpen: (val: boolean) => void;
+  
   undoStarLog: (logId: string) => void;
   resetToSampleData: () => void;
   exportBackupJSON: () => void;
@@ -68,7 +90,16 @@ const STORAGE_KEYS = {
   REWARDS: 'stargooddeeds_rewards_v2',
   CATEGORIES: 'stargooddeeds_categories_v2',
   SOUND: 'stargooddeeds_sound_v2',
+  ATTENDANCE: 'stargooddeeds_attendance_v2',
+  TEAMS: 'stargooddeeds_teams_v2',
 };
+
+const DEFAULT_TEAMS_DATA: StudentTeam[] = [
+  { id: 'team-red', name: 'ทีมมังกรแดง 🐲', color: 'text-rose-600 border-rose-200 bg-rose-50', bgLight: 'bg-rose-500', studentIds: [] },
+  { id: 'team-blue', name: 'ทีมนกอินทรีฟ้า 🦅', color: 'text-blue-600 border-blue-200 bg-blue-50', bgLight: 'bg-blue-500', studentIds: [] },
+  { id: 'team-green', name: 'ทีมเสือเขียว 🐯', color: 'text-emerald-600 border-emerald-200 bg-emerald-50', bgLight: 'bg-emerald-500', studentIds: [] },
+  { id: 'team-yellow', name: 'ทีมสิงโตทอง 🦁', color: 'text-amber-600 border-amber-200 bg-amber-50', bgLight: 'bg-amber-500', studentIds: [] },
+];
 
 export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Local state with LocalStorage initializers
@@ -123,6 +154,35 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(new Date());
+
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [teams, setTeams] = useState<StudentTeam[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TEAMS);
+      return saved ? JSON.parse(saved) : DEFAULT_TEAMS_DATA;
+    } catch {
+      return DEFAULT_TEAMS_DATA;
+    }
+  });
+
+  const [isProjectorOpen, setIsProjectorOpen] = useState<boolean>(false);
+
+  // Sync attendance & teams
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
+  }, [attendance]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+  }, [teams]);
 
   // Keep sound effects sync
   useEffect(() => {
@@ -553,6 +613,152 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   };
 
+  // Category Management
+  const addCategory = (catData: Omit<StarCategory, 'id'>) => {
+    const newCat: StarCategory = {
+      ...catData,
+      id: `cat-${Date.now()}`,
+    };
+    setCategories((prev) => [...prev, newCat]);
+    sounds.playClick();
+  };
+
+  const editCategory = (id: string, updates: Partial<StarCategory>) => {
+    setCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+    );
+    sounds.playClick();
+  };
+
+  const deleteCategory = (id: string) => {
+    setCategories((prev) => prev.filter((c) => c.id !== id));
+    sounds.playClick();
+  };
+
+  // Attendance Management
+  const markAttendance = (studentId: string, date: string, status: AttendanceStatus, note?: string) => {
+    const student = students.find((s) => s.id === studentId);
+    if (!student) return;
+
+    setAttendance((prev) => {
+      const existingIndex = prev.findIndex((r) => r.studentId === studentId && r.date === date);
+      const newRecord: AttendanceRecord = {
+        id: existingIndex >= 0 ? prev[existingIndex].id : `att-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        date,
+        studentId,
+        studentName: student.name,
+        classroom: student.classroom,
+        status,
+        note,
+      };
+
+      if (existingIndex >= 0) {
+        const copy = [...prev];
+        copy[existingIndex] = newRecord;
+        return copy;
+      } else {
+        return [...prev, newRecord];
+      }
+    });
+    sounds.playClick();
+  };
+
+  const batchMarkAttendance = (records: { studentId: string; status: AttendanceStatus }[], date: string) => {
+    setAttendance((prev) => {
+      const map = new Map<string, AttendanceRecord>();
+      prev.forEach((r) => {
+        if (r.date !== date) {
+          map.set(`${r.studentId}-${r.date}`, r);
+        }
+      });
+      records.forEach((rec) => {
+        const student = students.find((s) => s.id === rec.studentId);
+        if (student) {
+          map.set(`${rec.studentId}-${date}`, {
+            id: `att-${Date.now()}-${rec.studentId}`,
+            date,
+            studentId: rec.studentId,
+            studentName: student.name,
+            classroom: student.classroom,
+            status: rec.status,
+          });
+        }
+      });
+      return Array.from(map.values());
+    });
+    sounds.playClick();
+  };
+
+  const rewardPresentStudents = (date: string, amount: number, note: string): number => {
+    const presentRecords = attendance.filter((a) => a.date === date && a.status === 'present');
+    const presentIds = presentRecords.map((r) => r.studentId);
+    if (presentIds.length > 0) {
+      batchAddStars(presentIds, amount, 'ตรงต่อเวลา', note || `มาเรียนตรงเวลา วันที่ ${date}`);
+    }
+    return presentIds.length;
+  };
+
+  // Team Management
+  const createTeam = (name: string, color: string, bgLight: string, studentIds: string[] = []) => {
+    const newTeam: StudentTeam = {
+      id: `team-${Date.now()}`,
+      name,
+      color,
+      bgLight,
+      studentIds,
+    };
+    setTeams((prev) => [...prev, newTeam]);
+    sounds.playClick();
+  };
+
+  const deleteTeam = (teamId: string) => {
+    setTeams((prev) => prev.filter((t) => t.id !== teamId));
+    sounds.playClick();
+  };
+
+  const autoSplitTeams = (numTeams: number, classroom: string) => {
+    const filteredStudents = classroom === 'all' 
+      ? [...students] 
+      : students.filter((s) => s.classroom === classroom);
+    
+    const shuffled = [...filteredStudents].sort(() => Math.random() - 0.5);
+
+    const teamNames = ['ทีมมังกรแดง 🐲', 'ทีมนกอินทรีฟ้า 🦅', 'ทีมเสือเขียว 🐯', 'ทีมสิงโตทอง 🦁', 'ทีมฟีนิกซ์ม่วง 🦅', 'ทีมเพนกวินหิมะ 🐧'];
+    const teamColors = [
+      { color: 'text-rose-600 border-rose-200 bg-rose-50', bgLight: 'bg-rose-500' },
+      { color: 'text-blue-600 border-blue-200 bg-blue-50', bgLight: 'bg-blue-500' },
+      { color: 'text-emerald-600 border-emerald-200 bg-emerald-50', bgLight: 'bg-emerald-500' },
+      { color: 'text-amber-600 border-amber-200 bg-amber-50', bgLight: 'bg-amber-500' },
+      { color: 'text-purple-600 border-purple-200 bg-purple-50', bgLight: 'bg-purple-500' },
+      { color: 'text-cyan-600 border-cyan-200 bg-cyan-50', bgLight: 'bg-cyan-500' },
+    ];
+
+    const newTeams: StudentTeam[] = [];
+    for (let i = 0; i < numTeams; i++) {
+      newTeams.push({
+        id: `team-${i + 1}`,
+        name: teamNames[i % teamNames.length] || `ทีมที่ ${i + 1}`,
+        color: teamColors[i % teamColors.length].color,
+        bgLight: teamColors[i % teamColors.length].bgLight,
+        studentIds: [],
+      });
+    }
+
+    shuffled.forEach((std, idx) => {
+      newTeams[idx % numTeams].studentIds.push(std.id);
+    });
+
+    setTeams(newTeams);
+    sounds.playRewardFanfare();
+    fireStarShower();
+  };
+
+  const addStarsToTeam = (teamId: string, amount: number, note: string) => {
+    const team = teams.find((t) => t.id === teamId);
+    if (!team || team.studentIds.length === 0) return;
+    batchAddStars(team.studentIds, amount, 'กิจกรรมกลุ่ม', `${note} (${team.name})`);
+  };
+
   // Undo a specific log
   const undoStarLog = (logId: string) => {
     let targetLog: StarLog | undefined;
@@ -700,6 +906,20 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         editReward,
         deleteReward,
         claimReward,
+        addCategory,
+        editCategory,
+        deleteCategory,
+        attendance,
+        markAttendance,
+        batchMarkAttendance,
+        rewardPresentStudents,
+        teams,
+        createTeam,
+        deleteTeam,
+        autoSplitTeams,
+        addStarsToTeam,
+        isProjectorOpen,
+        setIsProjectorOpen,
         undoStarLog,
         resetToSampleData,
         exportBackupJSON,

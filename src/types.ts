@@ -48,4 +48,35 @@ export interface StarCategory {
   defaultAmount: number;
 }
 
-export type TabType = 'dashboard' | 'add-star' | 'students' | 'classrooms' | 'leaderboard' | 'rewards' | 'history';
+export type AttendanceStatus = 'present' | 'late' | 'absent' | 'leave';
+
+export interface AttendanceRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  studentId: string;
+  studentName: string;
+  classroom: string;
+  status: AttendanceStatus;
+  note?: string;
+}
+
+export interface StudentTeam {
+  id: string;
+  name: string;
+  color: string;
+  bgLight: string;
+  studentIds: string[];
+}
+
+export type TabType = 
+  | 'dashboard' 
+  | 'add-star' 
+  | 'activities' 
+  | 'attendance' 
+  | 'students' 
+  | 'classrooms' 
+  | 'leaderboard' 
+  | 'rewards' 
+  | 'badges' 
+  | 'reports' 
+  | 'history';

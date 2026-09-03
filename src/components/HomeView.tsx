@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Star, Search, Edit3, Trash2, Plus, Minus, Users, Gift, Moon, Sun, Volume2, VolumeX, Award
+  Star, Search, Edit3, Trash2, Plus, Minus, Users, Gift, Moon, Sun, Volume2, VolumeX, Award,
+  Sparkles, CheckCircle2, BookmarkCheck, FileText, Monitor
 } from 'lucide-react';
 import { useStudents } from '../context/StudentContext';
 import { Student, TabType } from '../types';
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export const HomeView: React.FC<Props> = ({ onOpenBackup, onSelectTab }) => {
-  const { students, classrooms, addStars, editStudent, deleteStudent } = useStudents();
+  const { students, classrooms, addStars, editStudent, deleteStudent, setIsProjectorOpen } = useStudents();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
@@ -103,6 +104,74 @@ export const HomeView: React.FC<Props> = ({ onOpenBackup, onSelectTab }) => {
           </button>
         </div>
       </header>
+
+      {/* Classroom Power Tools Quick Suite */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <button
+          onClick={() => onSelectTab && onSelectTab('activities')}
+          className="bg-white hover:bg-purple-50/60 p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-3 transition-all hover:border-purple-300 text-left group cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-black text-slate-800 truncate">กิจกรรม & สุ่มชื่อ</div>
+            <div className="text-[11px] text-slate-400 truncate">วงล้อ / แบ่งกลุ่ม</div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => onSelectTab && onSelectTab('attendance')}
+          className="bg-white hover:bg-teal-50/60 p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-3 transition-all hover:border-teal-300 text-left group cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-black text-slate-800 truncate">เช็คชื่อมาเรียน</div>
+            <div className="text-[11px] text-slate-400 truncate">แจกดาวตรงเวลา</div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => onSelectTab && onSelectTab('badges')}
+          className="bg-white hover:bg-amber-50/60 p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-3 transition-all hover:border-amber-300 text-left group cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <BookmarkCheck className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-black text-slate-800 truncate">เกณฑ์ความดี</div>
+            <div className="text-[11px] text-slate-400 truncate">ตั้งค่าพฤติกรรม</div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => onSelectTab && onSelectTab('reports')}
+          className="bg-white hover:bg-indigo-50/60 p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-3 transition-all hover:border-indigo-300 text-left group cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-black text-slate-800 truncate">รายงาน & เกียรติบัตร</div>
+            <div className="text-[11px] text-slate-400 truncate">ส่งออก Excel / พิมพ์</div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setIsProjectorOpen(true)}
+          className="bg-linear-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white p-3.5 rounded-2xl shadow-sm flex items-center space-x-3 transition-all text-left col-span-2 sm:col-span-1 group cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-400/30 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <Monitor className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-black truncate">โหมดโปรเจกเตอร์</div>
+            <div className="text-[11px] text-amber-100 truncate">ฉายจอใหญ่หน้าห้อง 🖥️</div>
+          </div>
+        </button>
+      </div>
 
       {/* 2. Filter Bar */}
       <div className="bg-white rounded-3xl p-3 flex flex-col lg:flex-row items-center justify-between border border-slate-100 shadow-sm gap-4">

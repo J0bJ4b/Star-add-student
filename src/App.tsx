@@ -11,6 +11,11 @@ import { LeaderboardView } from './components/LeaderboardView';
 import { RewardsView } from './components/RewardsView';
 import { HistoryView } from './components/HistoryView';
 import { ClassroomsView } from './components/ClassroomsView';
+import { ActivitiesView } from './components/ActivitiesView';
+import { AttendanceView } from './components/AttendanceView';
+import { BadgesView } from './components/BadgesView';
+import { ReportsView } from './components/ReportsView';
+import { ProjectorModal } from './components/ProjectorModal';
 
 function MainAppContent() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
@@ -32,6 +37,8 @@ function MainAppContent() {
               onSelectTab={(tab) => setCurrentTab(tab)}
             />
           )}
+          {currentTab === 'activities' && <ActivitiesView />}
+          {currentTab === 'attendance' && <AttendanceView />}
           {currentTab === 'students' && <StudentsView />}
           {currentTab === 'classrooms' && (
             <ClassroomsView onNavigateTab={(tab) => setCurrentTab(tab)} />
@@ -39,6 +46,8 @@ function MainAppContent() {
           {currentTab === 'add-star' && <AddStarView />}
           {currentTab === 'leaderboard' && <LeaderboardView />}
           {currentTab === 'rewards' && <RewardsView />}
+          {currentTab === 'badges' && <BadgesView />}
+          {currentTab === 'reports' && <ReportsView />}
           {currentTab === 'history' && <HistoryView />}
         </main>
       </div>
@@ -47,6 +56,7 @@ function MainAppContent() {
         isOpen={isBackupOpen}
         onClose={() => setIsBackupOpen(false)}
       />
+      <ProjectorModal />
       <FloatingParticles />
     </div>
   );
